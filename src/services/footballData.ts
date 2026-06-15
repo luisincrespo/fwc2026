@@ -16,7 +16,7 @@ export interface LiveMatch {
 
 function isLikelyStillLive(utcDate: string): boolean {
   const elapsed = (Date.now() - new Date(utcDate).getTime()) / 1000 / 60;
-  return elapsed < 110;
+  return elapsed < 150;
 }
 
 const FIVE_MIN = 5 * 60 * 1000;
