@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { LiveMatch, GoalEvent } from '../types';
-import { Flag } from './Flag';
 import { MatchRow } from './MatchRow';
 
 interface Props {

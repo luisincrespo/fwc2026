@@ -42,11 +42,18 @@ async function getMockMatches() {
 
 app.get('/api/live-leaderboard', async (req, res) => {
   try {
-    const [{ leaderboard, rules }, fetchedMatches, espnMatches] = await Promise.all([
+    const [{ leaderboard, rules }, fetchedMatches, espnMatches, allGames] = await Promise.all([
       getOfficialLeaderboard(),
       getLiveMatches(),
       getEspnMatches(),
+      getGames(),
     ]);
+
+    const flagByTeam = new Map<string, string>();
+    for (const g of allGames) {
+      flagByTeam.set(g.home_team_name, g.home_flag);
+      flagByTeam.set(g.away_team_name, g.away_flag);
+    }
 
     // Match ESPN enrichment (minute + goals) by kickoff time
     function espnFor(utcDate: string) {
@@ -109,8 +116,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
         liveBreakdown.push({
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
-          homeCode: (match as Record<string, unknown>)['homeCode'] ?? pred.home_code,
-          awayCode: (match as Record<string, unknown>)['awayCode'] ?? pred.away_code,
+          homeCode: ((match as Record<string, unknown>)['homeCode'] as string) || flagByTeam.get(match.homeTeam) || '',
+          awayCode: ((match as Record<string, unknown>)['awayCode'] as string) || flagByTeam.get(match.awayTeam) || '',
           liveHome: match.homeGoals,
           liveAway: match.awayGoals,
           predictedHome: pred.predicted_home,
@@ -149,8 +156,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
         return {
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          homeCode: raw['homeCode'] ?? pred?.home_code ?? '',
-          awayCode: raw['awayCode'] ?? pred?.away_code ?? '',
+          homeCode: (raw['homeCode'] as string) || flagByTeam.get(m.homeTeam) || '',
+          awayCode: (raw['awayCode'] as string) || flagByTeam.get(m.awayTeam) || '',
           homeGoals: m.homeGoals,
           awayGoals: m.awayGoals,
           minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
