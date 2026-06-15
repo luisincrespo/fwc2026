@@ -43,7 +43,8 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
 
     const status = comp['status'] as Record<string, unknown>;
     const statusType = status['type'] as Record<string, unknown>;
-    const isLive = statusType['state'] === 'in';
+    const state = statusType['state'] as string;
+    const statusName = statusType['name'] as string;
 
     const details = (comp['details'] as Record<string, unknown>[]) ?? [];
     const goals: EspnGoal[] = details
@@ -62,7 +63,10 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
 
     matches.push({
       kickoffUtc: event['date'] as string,
-      minute: isLive ? (status['displayClock'] as string) : null,
+      minute: state === 'post' ? 'FT'
+        : statusName === 'STATUS_HALFTIME' ? 'HT'
+        : state === 'in' ? (status['displayClock'] as string)
+        : null,
       goals,
     });
   }
