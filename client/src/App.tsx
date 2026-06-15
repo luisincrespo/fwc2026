@@ -22,7 +22,7 @@ export function App() {
     try {
       const [result, schedule] = await Promise.all([fetchLeaderboard(), fetchSchedule()]);
       const liveKeys = new Set(result.liveMatches.map((m) => `${m.homeTeam}|${m.awayTeam}`));
-      setUpcoming(schedule.matches.filter((m) => m.status === 'UPCOMING' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
+      setUpcoming(schedule.matches.filter((m) => m.status !== 'FINISHED' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
       setFinished(schedule.matches.filter((m) => m.status === 'FINISHED'));
 
       // Compute which participants changed rank since last fetch
