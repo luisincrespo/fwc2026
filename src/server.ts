@@ -61,15 +61,19 @@ app.get('/api/live-leaderboard', async (req, res) => {
       return espnMatches.find((e) => e.kickoffUtc.slice(0, 16) === key);
     }
 
-    // Normalize football-data.org matches to quiniela team names + flag codes
+    // Normalize football-data.org matches to quiniela team names + flag codes,
+    // and apply ESPN scores so both display and points calculation stay in sync
     const normalizedMatches = fetchedMatches.map((m) => {
       const q = quinielaByTime.get(m.utcDate.slice(0, 16));
+      const espn = espnFor(m.utcDate);
       return {
         ...m,
         homeTeam: q?.home_team_name ?? m.homeTeam,
         awayTeam: q?.away_team_name ?? m.awayTeam,
         homeCode: q?.home_flag ?? '',
         awayCode: q?.away_flag ?? '',
+        homeGoals: espn?.homeScore ?? m.homeGoals,
+        awayGoals: espn?.awayScore ?? m.awayGoals,
       };
     });
 
@@ -167,8 +171,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayTeam: m.awayTeam,
           homeCode: (raw['homeCode'] as string) || '',
           awayCode: (raw['awayCode'] as string) || '',
-          homeGoals: espn?.homeScore ?? m.homeGoals,
-          awayGoals: espn?.awayScore ?? m.awayGoals,
+          homeGoals: m.homeGoals,
+          awayGoals: m.awayGoals,
           minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
           goals: espn?.goals ?? (raw['goals'] as typeof espn.goals) ?? [],
         };
