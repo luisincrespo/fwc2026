@@ -167,8 +167,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayTeam: m.awayTeam,
           homeCode: (raw['homeCode'] as string) || '',
           awayCode: (raw['awayCode'] as string) || '',
-          homeGoals: m.homeGoals,
-          awayGoals: m.awayGoals,
+          homeGoals: espn?.homeScore ?? m.homeGoals,
+          awayGoals: espn?.awayScore ?? m.awayGoals,
           minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
           goals: espn?.goals ?? (raw['goals'] as typeof espn.goals) ?? [],
         };

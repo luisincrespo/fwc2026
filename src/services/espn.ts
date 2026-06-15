@@ -14,6 +14,8 @@ export interface EspnGoal {
 export interface EspnMatch {
   kickoffUtc: string;
   minute: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
   goals: EspnGoal[];
 }
 
@@ -67,6 +69,8 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
         : statusName === 'STATUS_HALFTIME' ? 'HT'
         : state === 'in' ? (status['displayClock'] as string)
         : null,
+      homeScore: home['score'] != null ? Number(home['score']) : null,
+      awayScore: away['score'] != null ? Number(away['score']) : null,
       goals,
     });
   }
