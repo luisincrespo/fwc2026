@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchLeaderboard } from './api';
 import type { LiveLeaderboardResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
+import { BiggestMovers } from './components/BiggestMovers';
 import { Leaderboard } from './components/Leaderboard';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
@@ -79,6 +80,7 @@ export function App() {
       {data && (
         <>
           <LiveMatchBanner matches={data.liveMatches} />
+          {data.liveMatches.length > 0 && <BiggestMovers entries={data.leaderboard} />}
           <Leaderboard
             entries={data.leaderboard}
             hasLive={data.liveMatches.length > 0}
