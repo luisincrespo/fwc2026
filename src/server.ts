@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { getOfficialLeaderboard, getBracket } from './services/quiniela.js';
-import { getLiveMatches } from './services/footballData.js';
+import { getLiveMatches, getScheduledMatches } from './services/footballData.js';
 import { calculateLivePoints } from './scoring.js';
 
 const app = express();
@@ -159,6 +159,16 @@ app.get('/api/live-leaderboard', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build live leaderboard' });
+  }
+});
+
+app.get('/api/schedule', async (_req, res) => {
+  try {
+    const matches = await getScheduledMatches();
+    res.json({ updatedAt: new Date().toISOString(), matches });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch schedule' });
   }
 });
 

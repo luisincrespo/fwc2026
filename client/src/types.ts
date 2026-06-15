@@ -36,3 +36,19 @@ export interface LiveLeaderboardResponse {
   liveMatches: LiveMatch[];
   leaderboard: LeaderboardEntry[];
 }
+
+export interface ScheduledMatch {
+  homeTeam: string;
+  awayTeam: string;
+  homeCrest: string;
+  awayCrest: string;
+  kickoffUtc: string;
+  status: 'UPCOMING' | 'LIVE' | 'FINISHED';
+  homeGoals: number | null;
+  awayGoals: number | null;
+}
+
+export interface ScheduleResponse {
+  updatedAt: string;
+  matches: ScheduledMatch[];
+}

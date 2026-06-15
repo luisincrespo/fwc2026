@@ -4,6 +4,7 @@ import type { LiveLeaderboardResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
 import { Leaderboard } from './components/Leaderboard';
+import { Nav } from './components/Nav';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
 
@@ -68,6 +69,8 @@ export function App() {
           </div>
         )}
       </div>
+
+      <Nav />
 
       {loading && (
         <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Loading…</p>
