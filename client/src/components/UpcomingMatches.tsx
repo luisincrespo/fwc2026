@@ -31,11 +31,11 @@ export function UpcomingMatches({ matches }: Props) {
                 color: '#cbd5e1',
               }}
             >
-              <Flag code={m.homeCode} size={18} />
+              <Flag code={m.homeCode} size={20} />
               <span>{m.homeTeam}</span>
               <span style={{ color: '#334155', margin: '0 4px' }}>vs</span>
               <span>{m.awayTeam}</span>
-              <Flag code={m.awayCode} size={18} />
+              <Flag code={m.awayCode} size={20} />
               <span style={{ marginLeft: 'auto', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                 {timeStr}
               </span>

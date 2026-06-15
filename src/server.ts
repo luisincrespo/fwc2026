@@ -178,7 +178,9 @@ app.get('/api/schedule', async (_req, res) => {
     const allGames = await getGames();
     const today = new Date().toISOString().slice(0, 10);
 
-    const todayGames = allGames.filter((g) => g.scheduled_at.slice(0, 10) === today);
+    const todayGames = allGames
+      .filter((g) => g.scheduled_at.slice(0, 10) === today)
+      .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
     const matches = todayGames.map((g) => {
       const elapsedMin = (Date.now() - new Date(g.scheduled_at).getTime()) / 60000;
