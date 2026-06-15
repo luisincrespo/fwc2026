@@ -4,6 +4,7 @@ import cors from 'cors';
 import path from 'path';
 import { getOfficialLeaderboard, getBracket, getGames } from './services/quiniela.js';
 import { getLiveMatches } from './services/footballData.js';
+import { getEspnMatches } from './services/espn.js';
 import { calculateLivePoints } from './scoring.js';
 
 const app = express();
@@ -21,10 +22,17 @@ const MOCK_MATCH = {
 
 app.get('/api/live-leaderboard', async (req, res) => {
   try {
-    const [{ leaderboard, rules }, fetchedMatches] = await Promise.all([
+    const [{ leaderboard, rules }, fetchedMatches, espnMatches] = await Promise.all([
       getOfficialLeaderboard(),
       getLiveMatches(),
+      getEspnMatches(),
     ]);
+
+    // Match ESPN enrichment (minute + goals) by kickoff time
+    function espnFor(utcDate: string) {
+      const key = utcDate.slice(0, 16);
+      return espnMatches.find((e) => e.kickoffUtc.slice(0, 16) === key);
+    }
     const liveMatches = req.query['mock'] === 'true' ? [MOCK_MATCH] : fetchedMatches;
 
     // Assign official ranks (1-indexed, ties share the same rank)
@@ -131,6 +139,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
         const pred = anyBracket.find(
           (p) => p.home_team === m.homeTeam && p.away_team === m.awayTeam,
         );
+        const espn = espnFor(m.utcDate);
         return {
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
@@ -138,6 +147,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayCode: (m as Record<string, unknown>)['awayCode'] ?? pred?.away_code ?? '',
           homeGoals: m.homeGoals,
           awayGoals: m.awayGoals,
+          minute: espn?.minute ?? null,
+          goals: espn?.goals ?? [],
           distribution: getDistribution(m),
         };
       }),

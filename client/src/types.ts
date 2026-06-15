@@ -1,3 +1,11 @@
+export interface GoalEvent {
+  team: 'home' | 'away';
+  scorer: string;
+  minute: string;
+  ownGoal: boolean;
+  penaltyKick: boolean;
+}
+
 export interface LiveMatch {
   homeTeam: string;
   awayTeam: string;
@@ -5,6 +13,8 @@ export interface LiveMatch {
   awayCode: string;
   homeGoals: number;
   awayGoals: number;
+  minute: string | null;
+  goals: GoalEvent[];
   distribution: { home: number; draw: number; away: number };
 }
 

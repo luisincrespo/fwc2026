@@ -1,8 +1,32 @@
-import type { LiveMatch } from '../types';
+import type { LiveMatch, GoalEvent } from '../types';
 import { Flag } from './Flag';
 
 interface Props {
   matches: LiveMatch[];
+}
+
+function GoalList({ goals, homeTeam, awayTeam }: { goals: GoalEvent[]; homeTeam: string; awayTeam: string }) {
+  const homeGoals = goals.filter((g) => g.team === 'home');
+  const awayGoals = goals.filter((g) => g.team === 'away');
+
+  function formatGoal(g: GoalEvent) {
+    const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
+    return `${g.scorer}${suffix} ${g.minute}`;
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#86efac' }}>
+      <span style={{ flex: 1, textAlign: 'right' }}>
+        {homeGoals.map(formatGoal).join(' · ')}
+        {homeGoals.length === 0 && <span style={{ color: '#4ade8066' }}>{homeTeam}</span>}
+      </span>
+      <span style={{ color: '#4ade8066', flexShrink: 0 }}>|</span>
+      <span style={{ flex: 1 }}>
+        {awayGoals.length === 0 && <span style={{ color: '#4ade8066' }}>{awayTeam}</span>}
+        {awayGoals.map(formatGoal).join(' · ')}
+      </span>
+    </div>
+  );
 }
 
 function DistributionBar({ dist, homeTeam, awayTeam }: {
@@ -66,9 +90,9 @@ export function LiveMatchBanner({ matches }: Props) {
             padding: '10px 16px',
           }}
         >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
             <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1, color: '#bbf7d0' }}>
-              ⚽ LIVE
+              ⚽ LIVE{m.minute ? ` · ${m.minute}` : ''}
             </span>
             <span style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Flag code={m.homeCode} /> {m.homeTeam} {m.homeGoals} – {m.awayGoals} {m.awayTeam} <Flag code={m.awayCode} />
@@ -77,6 +101,7 @@ export function LiveMatchBanner({ matches }: Props) {
               standings reflect current score
             </span>
           </div>
+          {m.goals.length > 0 && <GoalList goals={m.goals} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />}
           <DistributionBar dist={m.distribution} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />
         </div>
       ))}
