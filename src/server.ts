@@ -49,10 +49,10 @@ app.get('/api/live-leaderboard', async (req, res) => {
       getGames(),
     ]);
 
-    const flagByTeam = new Map<string, string>();
+    // Index quiniela games by kickoff time for name/flag normalization
+    const quinielaByTime = new Map<string, typeof allGames[0]>();
     for (const g of allGames) {
-      flagByTeam.set(g.home_team_name, g.home_flag);
-      flagByTeam.set(g.away_team_name, g.away_flag);
+      quinielaByTime.set(g.scheduled_at.slice(0, 16), g);
     }
 
     // Match ESPN enrichment (minute + goals) by kickoff time
@@ -60,7 +60,20 @@ app.get('/api/live-leaderboard', async (req, res) => {
       const key = utcDate.slice(0, 16);
       return espnMatches.find((e) => e.kickoffUtc.slice(0, 16) === key);
     }
-    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : fetchedMatches;
+
+    // Normalize football-data.org matches to quiniela team names + flag codes
+    const normalizedMatches = fetchedMatches.map((m) => {
+      const q = quinielaByTime.get(m.utcDate.slice(0, 16));
+      return {
+        ...m,
+        homeTeam: q?.home_team_name ?? m.homeTeam,
+        awayTeam: q?.away_team_name ?? m.awayTeam,
+        homeCode: q?.home_flag ?? '',
+        awayCode: q?.away_flag ?? '',
+      };
+    });
+
+    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : normalizedMatches;
 
     // Assign official ranks (1-indexed, ties share the same rank)
     const sorted = [...leaderboard].sort((a, b) => b.total_points - a.total_points);
@@ -116,8 +129,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
         liveBreakdown.push({
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
-          homeCode: ((match as Record<string, unknown>)['homeCode'] as string) || flagByTeam.get(match.homeTeam) || '',
-          awayCode: ((match as Record<string, unknown>)['awayCode'] as string) || flagByTeam.get(match.awayTeam) || '',
+          homeCode: ((match as Record<string, unknown>)['homeCode'] as string) || '',
+          awayCode: ((match as Record<string, unknown>)['awayCode'] as string) || '',
           liveHome: match.homeGoals,
           liveAway: match.awayGoals,
           predictedHome: pred.predicted_home,
@@ -147,17 +160,13 @@ app.get('/api/live-leaderboard', async (req, res) => {
     return res.json({
       updatedAt: new Date().toISOString(),
       liveMatches: liveMatches.map((m) => {
-        const anyBracket = brackets[0]?.preds ?? [];
-        const pred = anyBracket.find(
-          (p) => p.home_team === m.homeTeam && p.away_team === m.awayTeam,
-        );
         const espn = espnFor(m.utcDate);
         const raw = m as Record<string, unknown>;
         return {
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          homeCode: (raw['homeCode'] as string) || flagByTeam.get(m.homeTeam) || '',
-          awayCode: (raw['awayCode'] as string) || flagByTeam.get(m.awayTeam) || '',
+          homeCode: (raw['homeCode'] as string) || '',
+          awayCode: (raw['awayCode'] as string) || '',
           homeGoals: m.homeGoals,
           awayGoals: m.awayGoals,
           minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
