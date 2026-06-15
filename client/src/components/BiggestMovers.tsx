@@ -8,6 +8,7 @@ function Card({ label, color, entries }: { label: string; color: string; entries
   return (
     <div style={{
       flex: 1,
+      minWidth: 200,
       background: '#1e293b',
       borderRadius: 8,
       padding: '10px 14px',
@@ -39,7 +40,7 @@ export function BiggestMovers({ entries }: Props) {
   const droppers = minDelta < 0 ? entries.filter((e) => e.rankDelta === minDelta) : [];
 
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
       {climbers.length > 0 && (
         <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''}`} color="#4ade80" entries={climbers} />
       )}
