@@ -3,14 +3,25 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { getOfficialLeaderboard, getBracket, getGames } from './services/quiniela.js';
-import { getLiveMatches } from './services/footballData.js';
-import { getEspnMatches } from './services/espn.js';
+import { getEspnMatches, type EspnGoal } from './services/espn.js';
 import { calculateLivePoints } from './scoring.js';
 
 const app = express();
 app.use(cors());
 
-async function getMockMatches() {
+interface LiveMatchInternal {
+  homeTeam: string;
+  awayTeam: string;
+  homeCode: string;
+  awayCode: string;
+  homeGoals: number;
+  awayGoals: number;
+  utcDate: string;
+  minute: string | null;
+  goals: EspnGoal[];
+}
+
+async function getMockMatches(): Promise<LiveMatchInternal[]> {
   const allGames = await getGames();
   const today = new Date().toISOString().slice(0, 10);
   const todayUpcoming = allGames
@@ -40,52 +51,49 @@ async function getMockMatches() {
   }));
 }
 
+function isEspnFlipped(espnHomeTeam: string, quinielaHomeTeam: string): boolean {
+  return !quinielaHomeTeam.toLowerCase().split(' ').some(
+    (w) => espnHomeTeam.toLowerCase().includes(w),
+  );
+}
+
+function flipGoals(goals: EspnGoal[]): EspnGoal[] {
+  return goals.map((g) => ({ ...g, team: g.team === 'home' ? 'away' : 'home' as const }));
+}
+
 app.get('/api/live-leaderboard', async (req, res) => {
   try {
-    const [{ leaderboard, rules }, fetchedMatches, espnMatches, allGames] = await Promise.all([
+    const [{ leaderboard, rules }, espnMatches, allGames] = await Promise.all([
       getOfficialLeaderboard(),
-      getLiveMatches(),
       getEspnMatches(),
       getGames(),
     ]);
 
-    // Index quiniela games by kickoff time for name/flag normalization
     const quinielaByTime = new Map<string, typeof allGames[0]>();
     for (const g of allGames) {
       quinielaByTime.set(g.scheduled_at.slice(0, 16), g);
     }
 
-    // Match ESPN enrichment (minute + goals) by kickoff time
-    function espnFor(utcDate: string) {
-      const key = utcDate.slice(0, 16);
-      return espnMatches.find((e) => e.kickoffUtc.slice(0, 16) === key);
-    }
+    const espnLiveMatches: LiveMatchInternal[] = espnMatches
+      .filter((e) => e.isLive)
+      .map((e) => {
+        const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
+        const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
+        const flipped = isEspnFlipped(e.espnHomeTeam, quinielaHome);
+        return {
+          homeTeam: quinielaHome,
+          awayTeam: q?.away_team_name ?? '',
+          homeCode: q?.home_flag ?? '',
+          awayCode: q?.away_flag ?? '',
+          homeGoals: (flipped ? e.awayScore : e.homeScore) ?? 0,
+          awayGoals: (flipped ? e.homeScore : e.awayScore) ?? 0,
+          utcDate: e.kickoffUtc,
+          minute: e.minute,
+          goals: flipped ? flipGoals(e.goals) : e.goals,
+        };
+      });
 
-    // Normalize football-data.org matches to quiniela team names + flag codes,
-    // and apply ESPN scores so both display and points calculation stay in sync.
-    // WC matches are at neutral venues so ESPN's home/away may differ from quiniela's —
-    // detect and correct by comparing ESPN's home team name to quiniela's.
-    const normalizedMatches = fetchedMatches.map((m) => {
-      const q = quinielaByTime.get(m.utcDate.slice(0, 16));
-      const espn = espnFor(m.utcDate);
-
-      const quinielaHome = q?.home_team_name ?? m.homeTeam;
-      const espnFlipped = espn && !quinielaHome.toLowerCase().split(' ').some(
-        (w) => espn.espnHomeTeam.toLowerCase().includes(w),
-      );
-
-      return {
-        ...m,
-        homeTeam: quinielaHome,
-        awayTeam: q?.away_team_name ?? m.awayTeam,
-        homeCode: q?.home_flag ?? '',
-        awayCode: q?.away_flag ?? '',
-        homeGoals: espn ? (espnFlipped ? espn.awayScore : espn.homeScore) ?? m.homeGoals : m.homeGoals,
-        awayGoals: espn ? (espnFlipped ? espn.homeScore : espn.awayScore) ?? m.awayGoals : m.awayGoals,
-      };
-    });
-
-    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : normalizedMatches;
+    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : espnLiveMatches;
 
     // Assign official ranks (1-indexed, ties share the same rank)
     const sorted = [...leaderboard].sort((a, b) => b.total_points - a.total_points);
@@ -112,14 +120,11 @@ app.get('/api/live-leaderboard', async (req, res) => {
       });
     }
 
-    // Fetch all brackets in parallel to get predictions for live games
     const brackets = await Promise.all(
       leaderboard.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds }))),
     );
-
     const bracketMap = new Map(brackets.map((b) => [b.id, b.preds]));
 
-    // Calculate live points per participant
     const withLive = leaderboard.map((p) => {
       const preds = bracketMap.get(p.id) ?? [];
       let livePoints = 0;
@@ -141,8 +146,8 @@ app.get('/api/live-leaderboard', async (req, res) => {
         liveBreakdown.push({
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
-          homeCode: ((match as Record<string, unknown>)['homeCode'] as string) || '',
-          awayCode: ((match as Record<string, unknown>)['awayCode'] as string) || '',
+          homeCode: match.homeCode,
+          awayCode: match.awayCode,
           liveHome: match.homeGoals,
           liveAway: match.awayGoals,
           predictedHome: pred.predicted_home,
@@ -154,7 +159,6 @@ app.get('/api/live-leaderboard', async (req, res) => {
       return { ...p, livePoints, totalPoints: p.total_points + livePoints, liveBreakdown };
     });
 
-    // Re-rank by live total
     const liveRanked = [...withLive].sort(
       (a, b) => b.totalPoints - a.totalPoints || a.name.localeCompare(b.name),
     );
@@ -162,37 +166,24 @@ app.get('/api/live-leaderboard', async (req, res) => {
     const liveRankMap = new Map<number, number>();
     for (let i = 0; i < liveRanked.length; i++) {
       const prev = liveRanked[i - 1];
-      const rank =
-        prev && prev.totalPoints === liveRanked[i].totalPoints
-          ? liveRankMap.get(prev.id)!
-          : i + 1;
+      const rank = prev && prev.totalPoints === liveRanked[i].totalPoints
+        ? liveRankMap.get(prev.id)!
+        : i + 1;
       liveRankMap.set(liveRanked[i].id, rank);
     }
 
     return res.json({
       updatedAt: new Date().toISOString(),
-      liveMatches: liveMatches.map((m) => {
-        const espn = espnFor(m.utcDate);
-        const raw = m as Record<string, unknown>;
-        const espnFlipped = espn && !m.homeTeam.toLowerCase().split(' ').some(
-          (w) => espn.espnHomeTeam.toLowerCase().includes(w),
-        );
-        const goals = espn
-          ? (espnFlipped
-              ? espn.goals.map((g) => ({ ...g, team: g.team === 'home' ? 'away' : 'home' as const }))
-              : espn.goals)
-          : (raw['goals'] as typeof espn.goals) ?? [];
-        return {
-          homeTeam: m.homeTeam,
-          awayTeam: m.awayTeam,
-          homeCode: (raw['homeCode'] as string) || '',
-          awayCode: (raw['awayCode'] as string) || '',
-          homeGoals: m.homeGoals,
-          awayGoals: m.awayGoals,
-          minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
-          goals,
-        };
-      }),
+      liveMatches: liveMatches.map((m) => ({
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        homeCode: m.homeCode,
+        awayCode: m.awayCode,
+        homeGoals: m.homeGoals,
+        awayGoals: m.awayGoals,
+        minute: m.minute,
+        goals: m.goals,
+      })),
       leaderboard: liveRanked.map((p) => {
         const officialRank = officialRankMap.get(p.id) ?? 0;
         const liveRank = liveRankMap.get(p.id) ?? 0;
