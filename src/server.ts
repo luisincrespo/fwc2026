@@ -207,8 +207,8 @@ app.get('/api/schedule', async (req, res) => {
     const matches = todayGames.map((g) => {
       const elapsedMin = (Date.now() - new Date(g.scheduled_at).getTime()) / 60000;
       let status: 'UPCOMING' | 'LIVE' | 'FINISHED';
-      if (g.is_completed) status = 'FINISHED';
-      else if (elapsedMin >= 0 && elapsedMin < 110) status = 'LIVE';
+      if (g.is_completed || elapsedMin >= 150) status = 'FINISHED';
+      else if (elapsedMin >= 0) status = 'LIVE';
       else status = 'UPCOMING';
 
       return {
