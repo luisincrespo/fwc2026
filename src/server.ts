@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import { getOfficialLeaderboard, getBracket } from './services/quiniela.js';
 import { getLiveMatches } from './services/footballData.js';
 import { calculateLivePoints } from './scoring.js';
@@ -160,6 +161,12 @@ app.get('/api/live-leaderboard', async (req, res) => {
     res.status(500).json({ error: 'Failed to build live leaderboard' });
   }
 });
+
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(process.cwd(), 'client/dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+}
 
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
