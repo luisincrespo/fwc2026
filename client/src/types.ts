@@ -40,8 +40,8 @@ export interface LiveLeaderboardResponse {
 export interface ScheduledMatch {
   homeTeam: string;
   awayTeam: string;
-  homeCrest: string;
-  awayCrest: string;
+  homeCode: string;
+  awayCode: string;
   kickoffUtc: string;
   status: 'UPCOMING' | 'LIVE' | 'FINISHED';
   homeGoals: number | null;

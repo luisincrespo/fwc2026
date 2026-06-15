@@ -85,3 +85,39 @@ export async function getBracket(participantId: number): Promise<Prediction[]> {
   cache.set(cacheKey, predictions, 30 * 24 * 60 * 60 * 1000);
   return predictions;
 }
+
+export interface QuinielaGame {
+  game_id: number;
+  stage: string;
+  scheduled_at: string;
+  is_completed: number;
+  actual_home_score: number | null;
+  actual_away_score: number | null;
+  home_team_name: string;
+  away_team_name: string;
+  home_flag: string;
+  away_flag: string;
+}
+
+export async function getGames(): Promise<QuinielaGame[]> {
+  const cacheKey = 'quiniela:games';
+  const cached = cache.get<QuinielaGame[]>(cacheKey);
+  if (cached) return cached;
+
+  const res = await client.get(`/${API_KEY}/games`);
+  const games: QuinielaGame[] = res.data.games.map((g: Record<string, unknown>) => ({
+    game_id: g['game_id'] as number,
+    stage: g['stage'] as string,
+    scheduled_at: g['scheduled_at'] as string,
+    is_completed: g['is_completed'] as number,
+    actual_home_score: g['actual_home_score'] as number | null,
+    actual_away_score: g['actual_away_score'] as number | null,
+    home_team_name: g['home_team_name'] as string,
+    away_team_name: g['away_team_name'] as string,
+    home_flag: g['home_flag'] as string,
+    away_flag: g['away_flag'] as string,
+  }));
+
+  cache.set(cacheKey, games, FIVE_MIN);
+  return games;
+}

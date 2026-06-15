@@ -2,8 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { getOfficialLeaderboard, getBracket } from './services/quiniela.js';
-import { getLiveMatches, getScheduledMatches } from './services/footballData.js';
+import { getOfficialLeaderboard, getBracket, getGames } from './services/quiniela.js';
+import { getLiveMatches } from './services/footballData.js';
 import { calculateLivePoints } from './scoring.js';
 
 const app = express();
@@ -164,7 +164,30 @@ app.get('/api/live-leaderboard', async (req, res) => {
 
 app.get('/api/schedule', async (_req, res) => {
   try {
-    const matches = await getScheduledMatches();
+    const allGames = await getGames();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const todayGames = allGames.filter((g) => g.scheduled_at.slice(0, 10) === today);
+
+    const matches = todayGames.map((g) => {
+      const elapsedMin = (Date.now() - new Date(g.scheduled_at).getTime()) / 60000;
+      let status: 'UPCOMING' | 'LIVE' | 'FINISHED';
+      if (g.is_completed) status = 'FINISHED';
+      else if (elapsedMin >= 0 && elapsedMin < 110) status = 'LIVE';
+      else status = 'UPCOMING';
+
+      return {
+        homeTeam: g.home_team_name,
+        awayTeam: g.away_team_name,
+        homeCode: g.home_flag,
+        awayCode: g.away_flag,
+        kickoffUtc: g.scheduled_at,
+        status,
+        homeGoals: g.actual_home_score,
+        awayGoals: g.actual_away_score,
+      };
+    });
+
     res.json({ updatedAt: new Date().toISOString(), matches });
   } catch (err) {
     console.error(err);

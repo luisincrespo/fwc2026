@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { fetchLeaderboard } from './api';
-import type { LiveLeaderboardResponse } from './types';
+import { fetchLeaderboard, fetchSchedule } from './api';
+import type { LiveLeaderboardResponse, ScheduledMatch } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
 import { Leaderboard } from './components/Leaderboard';
-import { Nav } from './components/Nav';
+import { UpcomingMatches } from './components/UpcomingMatches';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
 
 export function App() {
   const [data, setData] = useState<LiveLeaderboardResponse | null>(null);
+  const [upcoming, setUpcoming] = useState<ScheduledMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
@@ -17,7 +18,8 @@ export function App() {
 
   const load = useCallback(async () => {
     try {
-      const result = await fetchLeaderboard();
+      const [result, schedule] = await Promise.all([fetchLeaderboard(), fetchSchedule()]);
+      setUpcoming(schedule.matches.filter((m) => m.status === 'UPCOMING'));
 
       // Compute which participants changed rank since last fetch
       const flashing = new Map<number, 'up' | 'down'>();
@@ -70,8 +72,6 @@ export function App() {
         )}
       </div>
 
-      <Nav />
-
       {loading && (
         <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Loading…</p>
       )}
@@ -83,6 +83,7 @@ export function App() {
       {data && (
         <>
           <LiveMatchBanner matches={data.liveMatches} />
+          <UpcomingMatches matches={upcoming} />
           {data.liveMatches.length > 0 && <BiggestMovers entries={data.leaderboard} />}
           <Leaderboard
             entries={data.leaderboard}
