@@ -10,21 +10,35 @@ import { calculateLivePoints } from './scoring.js';
 const app = express();
 app.use(cors());
 
-const MOCK_MATCH = {
-  homeTeam: 'Spain',
-  awayTeam: 'Cape Verde',
-  homeCode: 'es',
-  awayCode: 'cv',
-  homeGoals: 2,
-  awayGoals: 1,
-  utcDate: new Date().toISOString(),
-  minute: "67'",
-  goals: [
-    { team: 'home' as const, scorer: 'A. Morata', minute: "23'", ownGoal: false, penaltyKick: false },
-    { team: 'away' as const, scorer: 'R. Gomes', minute: "51'", ownGoal: false, penaltyKick: false },
-    { team: 'home' as const, scorer: 'D. Olmo', minute: "67'", ownGoal: false, penaltyKick: false },
-  ],
-};
+async function getMockMatches() {
+  const allGames = await getGames();
+  const today = new Date().toISOString().slice(0, 10);
+  const todayUpcoming = allGames
+    .filter((g) => !g.is_completed && g.scheduled_at.slice(0, 10) === today)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+  const candidates = (todayUpcoming.length >= 2 ? todayUpcoming : allGames
+    .filter((g) => !g.is_completed)
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()))
+    .slice(0, 2);
+
+  return candidates.map((g, i) => ({
+    homeTeam: g.home_team_name,
+    awayTeam: g.away_team_name,
+    homeCode: g.home_flag,
+    awayCode: g.away_flag,
+    homeGoals: i === 0 ? 2 : 0,
+    awayGoals: i === 0 ? 1 : 0,
+    utcDate: g.scheduled_at,
+    minute: i === 0 ? "67'" : "12'",
+    goals: i === 0
+      ? [
+          { team: 'home' as const, scorer: 'Scorer A', minute: "23'", ownGoal: false, penaltyKick: false },
+          { team: 'away' as const, scorer: 'Scorer B', minute: "51'", ownGoal: false, penaltyKick: false },
+          { team: 'home' as const, scorer: 'Scorer C', minute: "67'", ownGoal: false, penaltyKick: false },
+        ]
+      : [],
+  }));
+}
 
 app.get('/api/live-leaderboard', async (req, res) => {
   try {
@@ -39,7 +53,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
       const key = utcDate.slice(0, 16);
       return espnMatches.find((e) => e.kickoffUtc.slice(0, 16) === key);
     }
-    const liveMatches = req.query['mock'] === 'true' ? [MOCK_MATCH] : fetchedMatches;
+    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : fetchedMatches;
 
     // Assign official ranks (1-indexed, ties share the same rank)
     const sorted = [...leaderboard].sort((a, b) => b.total_points - a.total_points);
@@ -123,21 +137,6 @@ app.get('/api/live-leaderboard', async (req, res) => {
       liveRankMap.set(liveRanked[i].id, rank);
     }
 
-    // Build prediction distribution per live match
-    function getDistribution(match: typeof liveMatches[0]) {
-      const dist = { home: 0, draw: 0, away: 0 };
-      for (const { preds } of brackets) {
-        const pred = preds.find(
-          (p) => p.home_team === match.homeTeam && p.away_team === match.awayTeam,
-        );
-        if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
-        if (pred.predicted_home > pred.predicted_away) dist.home++;
-        else if (pred.predicted_home < pred.predicted_away) dist.away++;
-        else dist.draw++;
-      }
-      return dist;
-    }
-
     return res.json({
       updatedAt: new Date().toISOString(),
       liveMatches: liveMatches.map((m) => {
@@ -156,7 +155,6 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayGoals: m.awayGoals,
           minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
           goals: espn?.goals ?? (raw['goals'] as typeof espn.goals) ?? [],
-          distribution: getDistribution(m),
         };
       }),
       leaderboard: liveRanked.map((p) => {

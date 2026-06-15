@@ -15,7 +15,6 @@ export interface LiveMatch {
   awayGoals: number;
   minute: string | null;
   goals: GoalEvent[];
-  distribution: { home: number; draw: number; away: number };
 }
 
 export interface LivePrediction {

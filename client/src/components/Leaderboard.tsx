@@ -77,7 +77,7 @@ export function Leaderboard({ entries, hasLive, flashMap }: Props) {
   return (
     <div>
       <input
-        type="text"
+        type="search"
         placeholder="Search participant…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -91,9 +91,10 @@ export function Leaderboard({ entries, hasLive, flashMap }: Props) {
           color: '#e2e8f0',
           fontSize: 14,
           outline: 'none',
+          boxSizing: 'border-box',
         }}
       />
-    <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
         <thead>
           <tr>
@@ -101,8 +102,8 @@ export function Leaderboard({ entries, hasLive, flashMap }: Props) {
             <th style={{ ...headerCell, textAlign: 'left' }}>Name</th>
             <th style={headerCell}>Official</th>
             {hasLive && <th style={{ ...headerCell, color: '#4ade80' }}>Live +</th>}
-            <th style={headerCell}>Live Score</th>
-            <th style={headerCell}>Δ</th>
+            {hasLive && <th style={headerCell}>Live Score</th>}
+            {hasLive && <th style={headerCell}>Δ</th>}
           </tr>
         </thead>
         <tbody>
@@ -151,7 +152,7 @@ export function Leaderboard({ entries, hasLive, flashMap }: Props) {
                       )}
                     </span>
                   </td>
-                  <td style={{ ...cell, color: '#94a3b8' }}>{entry.officialPoints}</td>
+                  <td style={{ ...cell, color: hasLive ? '#94a3b8' : undefined, fontWeight: hasLive ? 400 : 700 }}>{entry.officialPoints}</td>
                   {hasLive && (
                     <td
                       style={{
@@ -163,10 +164,8 @@ export function Leaderboard({ entries, hasLive, flashMap }: Props) {
                       {entry.livePoints > 0 ? `+${entry.livePoints}` : '—'}
                     </td>
                   )}
-                  <td style={{ ...cell, fontWeight: 700 }}>{entry.totalPoints}</td>
-                  <td style={cell}>
-                    <RankDelta delta={entry.rankDelta} />
-                  </td>
+                  {hasLive && <td style={{ ...cell, fontWeight: 700 }}>{entry.totalPoints}</td>}
+                  {hasLive && <td style={cell}><RankDelta delta={entry.rankDelta} /></td>}
                 </tr>
                 {isExpanded &&
                   entry.liveBreakdown.map((pred, j) => (

@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { LiveMatch, GoalEvent } from '../types';
 import { Flag } from './Flag';
+import { MatchRow } from './MatchRow';
 
 interface Props {
   matches: LiveMatch[];
@@ -11,7 +13,7 @@ function GoalList({ goals, homeTeam, awayTeam }: { goals: GoalEvent[]; homeTeam:
 
   function formatGoal(g: GoalEvent) {
     const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
-    return `${g.scorer}${suffix} ${g.minute}`;
+    return `⚽ ${g.scorer}${suffix} ${g.minute}`;
   }
 
   return (
@@ -29,35 +31,10 @@ function GoalList({ goals, homeTeam, awayTeam }: { goals: GoalEvent[]; homeTeam:
   );
 }
 
-function DistributionBar({ dist, homeTeam, awayTeam }: {
-  dist: { home: number; draw: number; away: number };
-  homeTeam: string;
-  awayTeam: string;
-}) {
-  const total = dist.home + dist.draw + dist.away;
-  if (total === 0) return null;
-  const pct = (n: number) => Math.round((n / total) * 100);
-  const homePct = pct(dist.home);
-  const drawPct = pct(dist.draw);
-  const awayPct = pct(dist.away);
-
-  return (
-    <div style={{ marginTop: 10, fontSize: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#bbf7d0' }}>
-        <span>{homeTeam} {homePct}%</span>
-        <span>Draw {drawPct}%</span>
-        <span>{awayPct}% {awayTeam}</span>
-      </div>
-      <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', gap: 2 }}>
-        <div style={{ flex: homePct, background: '#4ade80' }} />
-        <div style={{ flex: drawPct, background: '#94a3b8' }} />
-        <div style={{ flex: awayPct, background: '#f87171' }} />
-      </div>
-    </div>
-  );
-}
 
 export function LiveMatchBanner({ matches }: Props) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
   const label = (
     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
       Live now
@@ -81,7 +58,7 @@ export function LiveMatchBanner({ matches }: Props) {
           }}
         >
           <span>⏸</span>
-          <span>No live matches right now — leaderboard shows official standings.</span>
+          <span style={{ color: '#94a3b8' }}>No live matches right now — leaderboard shows official standings.</span>
         </div>
       </div>
     );
@@ -90,31 +67,58 @@ export function LiveMatchBanner({ matches }: Props) {
   return (
     <div style={{ marginBottom: 20 }}>
       {label}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {matches.map((m, i) => (
-        <div
-          key={i}
-          style={{
-            background: 'linear-gradient(90deg, #166534, #15803d)',
-            borderRadius: 8,
-            padding: '10px 16px',
-          }}
-        >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: 1, color: '#bbf7d0' }}>
-              ⚽ LIVE{m.minute ? ` · ${m.minute}` : ''}
-            </span>
-            <span style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Flag code={m.homeCode} /> {m.homeTeam} {m.homeGoals} – {m.awayGoals} {m.awayTeam} <Flag code={m.awayCode} />
-            </span>
-            <span style={{ fontSize: 12, color: '#86efac', marginLeft: 'auto' }}>
-              standings reflect current score
-            </span>
-          </div>
-          {m.goals.length > 0 && <GoalList goals={m.goals} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />}
-          <DistributionBar dist={m.distribution} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />
-        </div>
-      ))}
+      <style>{`
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        .live-minute { animation: livePulse 2s ease-in-out infinite; }
+      `}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {matches.map((m, i) => {
+          const isExpanded = expandedIdx === i;
+          const hasGoals = m.goals.length > 0;
+          return (
+            <div
+              key={i}
+              onClick={() => hasGoals && setExpandedIdx(isExpanded ? null : i)}
+              style={{
+                background: '#1e293b',
+                borderRadius: 8,
+                padding: '10px 16px',
+                borderLeft: '3px solid #22c55e',
+                cursor: hasGoals ? 'pointer' : 'default',
+                fontSize: 14,
+                color: '#cbd5e1',
+              }}
+            >
+              <div style={{ position: 'relative' }}>
+                {m.minute && (
+                  <span className="live-minute" style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#22c55e' }}>
+                    {m.minute}
+                  </span>
+                )}
+                {hasGoals && (
+                  <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#475569' }}>
+                    {isExpanded ? '▲' : '▼'}
+                  </span>
+                )}
+                <MatchRow
+                  homeTeam={m.homeTeam}
+                  awayTeam={m.awayTeam}
+                  homeCode={m.homeCode}
+                  awayCode={m.awayCode}
+                  center={
+                    <span style={{ fontWeight: 700, fontSize: 16, color: '#f1f5f9', letterSpacing: 2 }}>
+                      {m.homeGoals} – {m.awayGoals}
+                    </span>
+                  }
+                />
+              </div>
+              {isExpanded && <GoalList goals={m.goals} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

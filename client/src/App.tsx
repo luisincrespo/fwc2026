@@ -5,12 +5,14 @@ import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
 import { Leaderboard } from './components/Leaderboard';
 import { UpcomingMatches } from './components/UpcomingMatches';
+import { FinishedMatches } from './components/FinishedMatches';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
 
 export function App() {
   const [data, setData] = useState<LiveLeaderboardResponse | null>(null);
   const [upcoming, setUpcoming] = useState<ScheduledMatch[]>([]);
+  const [finished, setFinished] = useState<ScheduledMatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
@@ -19,7 +21,9 @@ export function App() {
   const load = useCallback(async () => {
     try {
       const [result, schedule] = await Promise.all([fetchLeaderboard(), fetchSchedule()]);
-      setUpcoming(schedule.matches.filter((m) => m.status === 'UPCOMING'));
+      const liveKeys = new Set(result.liveMatches.map((m) => `${m.homeTeam}|${m.awayTeam}`));
+      setUpcoming(schedule.matches.filter((m) => m.status === 'UPCOMING' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
+      setFinished(schedule.matches.filter((m) => m.status === 'FINISHED'));
 
       // Compute which participants changed rank since last fetch
       const flashing = new Map<number, 'up' | 'down'>();
@@ -82,9 +86,17 @@ export function App() {
 
       {data && (
         <>
+          <FinishedMatches matches={finished} />
           <UpcomingMatches matches={upcoming} />
           <LiveMatchBanner matches={data.liveMatches} />
-          {data.liveMatches.length > 0 && <BiggestMovers entries={data.leaderboard} />}
+          {data.liveMatches.length > 0 && (
+            <>
+              <p style={{ fontSize: 12, color: '#475569', textAlign: 'right', marginBottom: 8 }}>
+                Standings reflect current live scores
+              </p>
+              <BiggestMovers entries={data.leaderboard} />
+            </>
+          )}
           <Leaderboard
             entries={data.leaderboard}
             hasLive={data.liveMatches.length > 0}
