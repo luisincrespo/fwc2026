@@ -4,9 +4,19 @@ import type { LeaderboardEntry, LivePrediction } from '../types';
 import { RankDelta } from './RankDelta';
 import { Flag } from './Flag';
 
+const flashStyle = document.createElement('style');
+flashStyle.textContent = `
+  @keyframes flash-up   { 0%,100%{background:inherit} 30%{background:#14532d} }
+  @keyframes flash-down { 0%,100%{background:inherit} 30%{background:#450a0a} }
+  .flash-up   { animation: flash-up   1.5s ease-out }
+  .flash-down { animation: flash-down 1.5s ease-out }
+`;
+document.head.appendChild(flashStyle);
+
 interface Props {
   entries: LeaderboardEntry[];
   hasLive: boolean;
+  flashMap: Map<number, 'up' | 'down'>;
 }
 
 const cell: CSSProperties = {
@@ -54,7 +64,7 @@ function PredictionRow({ pred }: { pred: LivePrediction }) {
   );
 }
 
-export function Leaderboard({ entries, hasLive }: Props) {
+export function Leaderboard({ entries, hasLive, flashMap }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
 
@@ -101,11 +111,13 @@ export function Leaderboard({ entries, hasLive }: Props) {
             const isExpanded = expandedId === entry.id;
             const canExpand = hasLive && entry.liveBreakdown.length > 0;
             const rowBg = i % 2 === 0 ? '#131c2e' : '#0f172a';
+            const flash = flashMap.get(entry.id);
 
             return (
               <>
                 <tr
                   key={entry.id}
+                  className={flash ? `flash-${flash}` : undefined}
                   style={{
                     background: isExpanded ? '#1a2740' : rowBg,
                     cursor: canExpand ? 'pointer' : 'default',

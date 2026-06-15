@@ -108,6 +108,21 @@ app.get('/api/live-leaderboard', async (req, res) => {
       liveRankMap.set(liveRanked[i].id, rank);
     }
 
+    // Build prediction distribution per live match
+    function getDistribution(match: typeof liveMatches[0]) {
+      const dist = { home: 0, draw: 0, away: 0 };
+      for (const { preds } of brackets) {
+        const pred = preds.find(
+          (p) => p.home_team === match.homeTeam && p.away_team === match.awayTeam,
+        );
+        if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
+        if (pred.predicted_home > pred.predicted_away) dist.home++;
+        else if (pred.predicted_home < pred.predicted_away) dist.away++;
+        else dist.draw++;
+      }
+      return dist;
+    }
+
     return res.json({
       updatedAt: new Date().toISOString(),
       liveMatches: liveMatches.map((m) => {
@@ -122,6 +137,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayCode: (m as Record<string, unknown>)['awayCode'] ?? pred?.away_code ?? '',
           homeGoals: m.homeGoals,
           awayGoals: m.awayGoals,
+          distribution: getDistribution(m),
         };
       }),
       leaderboard: liveRanked.map((p) => {

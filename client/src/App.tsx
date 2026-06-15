@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchLeaderboard } from './api';
 import type { LiveLeaderboardResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
@@ -10,12 +10,32 @@ export function App() {
   const [data, setData] = useState<LiveLeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
+  const prevRanks = useRef<Map<number, number>>(new Map());
 
   const load = useCallback(async () => {
     try {
       const result = await fetchLeaderboard();
+
+      // Compute which participants changed rank since last fetch
+      const flashing = new Map<number, 'up' | 'down'>();
+      if (prevRanks.current.size > 0) {
+        for (const entry of result.leaderboard) {
+          const prev = prevRanks.current.get(entry.id);
+          if (prev !== undefined && prev !== entry.rank) {
+            flashing.set(entry.id, entry.rank < prev ? 'up' : 'down');
+          }
+        }
+      }
+
+      prevRanks.current = new Map(result.leaderboard.map((e) => [e.id, e.rank]));
       setData(result);
       setError(null);
+
+      if (flashing.size > 0) {
+        setFlashMap(flashing);
+        setTimeout(() => setFlashMap(new Map()), 1500);
+      }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
     } finally {
@@ -59,7 +79,11 @@ export function App() {
       {data && (
         <>
           <LiveMatchBanner matches={data.liveMatches} />
-          <Leaderboard entries={data.leaderboard} hasLive={data.liveMatches.length > 0} />
+          <Leaderboard
+            entries={data.leaderboard}
+            hasLive={data.liveMatches.length > 0}
+            flashMap={flashMap}
+          />
         </>
       )}
     </div>

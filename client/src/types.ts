@@ -5,6 +5,7 @@ export interface LiveMatch {
   awayCode: string;
   homeGoals: number;
   awayGoals: number;
+  distribution: { home: number; draw: number; away: number };
 }
 
 export interface LivePrediction {
