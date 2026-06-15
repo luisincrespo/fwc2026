@@ -165,7 +165,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(process.cwd(), 'client/dist');
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+  app.get('/{*path}', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
 
 const PORT = process.env.PORT ?? 3000;
