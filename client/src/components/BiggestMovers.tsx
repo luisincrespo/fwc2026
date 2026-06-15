@@ -17,10 +17,11 @@ function Card({ label, color, entries }: { label: string; color: string; entries
         {label}
       </div>
       {entries.map((e) => (
-        <div key={e.id} style={{ fontSize: 14, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{e.name}</span>
-          <span style={{ fontWeight: 700, color }}>
-            {e.rankDelta > 0 ? '▲' : '▼'} {Math.abs(e.rankDelta)}
+        <div key={e.id} style={{ fontSize: 14, color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}>
+            <span style={{ fontSize: 12, color: '#475569' }}>#{e.rank + e.rankDelta} → #{e.rank}</span>
+            <span style={{ fontWeight: 700, color, minWidth: '3ch', textAlign: 'right' }}>{e.rankDelta > 0 ? '▲' : '▼'}{Math.abs(e.rankDelta)}</span>
           </span>
         </div>
       ))}
