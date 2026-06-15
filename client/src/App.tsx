@@ -82,8 +82,8 @@ export function App() {
 
       {data && (
         <>
-          <LiveMatchBanner matches={data.liveMatches} />
           <UpcomingMatches matches={upcoming} />
+          <LiveMatchBanner matches={data.liveMatches} />
           {data.liveMatches.length > 0 && <BiggestMovers entries={data.leaderboard} />}
           <Leaderboard
             entries={data.leaderboard}
