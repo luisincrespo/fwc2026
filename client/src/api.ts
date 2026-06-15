@@ -9,7 +9,8 @@ export async function fetchLeaderboard(): Promise<LiveLeaderboardResponse> {
 }
 
 export async function fetchSchedule(): Promise<ScheduleResponse> {
-  const res = await fetch('/api/schedule');
+  const localDate = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+  const res = await fetch(`/api/schedule?date=${localDate}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }

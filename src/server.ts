@@ -185,10 +185,10 @@ app.get('/api/live-leaderboard', async (req, res) => {
   }
 });
 
-app.get('/api/schedule', async (_req, res) => {
+app.get('/api/schedule', async (req, res) => {
   try {
     const allGames = await getGames();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = (req.query['date'] as string) || new Date().toISOString().slice(0, 10);
 
     const todayGames = allGames
       .filter((g) => g.scheduled_at.slice(0, 10) === today)
