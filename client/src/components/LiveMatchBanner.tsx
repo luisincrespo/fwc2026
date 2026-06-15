@@ -58,32 +58,38 @@ function DistributionBar({ dist, homeTeam, awayTeam }: {
 }
 
 export function LiveMatchBanner({ matches }: Props) {
+  const label = (
+    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
+      Live now
+    </div>
+  );
+
   if (matches.length === 0) {
     return (
-      <div
-        style={{
-          background: '#1e293b',
-          borderRadius: 8,
-          padding: '10px 16px',
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          color: '#64748b',
-          fontSize: 14,
-        }}
-      >
-        <span>⏸</span>
-        <span>No live matches right now — leaderboard shows official standings.</span>
+      <div style={{ marginBottom: 20 }}>
+        {label}
+        <div
+          style={{
+            background: '#1e293b',
+            borderRadius: 8,
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            color: '#64748b',
+            fontSize: 14,
+          }}
+        >
+          <span>⏸</span>
+          <span>No live matches right now — leaderboard shows official standings.</span>
+        </div>
       </div>
     );
   }
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
-        Live now
-      </div>
+      {label}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {matches.map((m, i) => (
         <div
