@@ -15,9 +15,15 @@ const MOCK_MATCH = {
   awayTeam: 'Cape Verde',
   homeCode: 'es',
   awayCode: 'cv',
-  homeGoals: 1,
-  awayGoals: 0,
+  homeGoals: 2,
+  awayGoals: 1,
   utcDate: new Date().toISOString(),
+  minute: "67'",
+  goals: [
+    { team: 'home' as const, scorer: 'A. Morata', minute: "23'", ownGoal: false, penaltyKick: false },
+    { team: 'away' as const, scorer: 'R. Gomes', minute: "51'", ownGoal: false, penaltyKick: false },
+    { team: 'home' as const, scorer: 'D. Olmo', minute: "67'", ownGoal: false, penaltyKick: false },
+  ],
 };
 
 app.get('/api/live-leaderboard', async (req, res) => {
@@ -140,15 +146,16 @@ app.get('/api/live-leaderboard', async (req, res) => {
           (p) => p.home_team === m.homeTeam && p.away_team === m.awayTeam,
         );
         const espn = espnFor(m.utcDate);
+        const raw = m as Record<string, unknown>;
         return {
           homeTeam: m.homeTeam,
           awayTeam: m.awayTeam,
-          homeCode: (m as Record<string, unknown>)['homeCode'] ?? pred?.home_code ?? '',
-          awayCode: (m as Record<string, unknown>)['awayCode'] ?? pred?.away_code ?? '',
+          homeCode: raw['homeCode'] ?? pred?.home_code ?? '',
+          awayCode: raw['awayCode'] ?? pred?.away_code ?? '',
           homeGoals: m.homeGoals,
           awayGoals: m.awayGoals,
-          minute: espn?.minute ?? null,
-          goals: espn?.goals ?? [],
+          minute: espn?.minute ?? (raw['minute'] as string | null) ?? null,
+          goals: espn?.goals ?? (raw['goals'] as typeof espn.goals) ?? [],
           distribution: getDistribution(m),
         };
       }),
