@@ -19,11 +19,9 @@ function GoalList({ goals, homeTeam, awayTeam }: { goals: GoalEvent[]; homeTeam:
     <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#86efac' }}>
       <span style={{ flex: 1, textAlign: 'right' }}>
         {homeGoals.map(formatGoal).join(' · ')}
-        {homeGoals.length === 0 && <span style={{ color: '#4ade8066' }}>{homeTeam}</span>}
       </span>
       <span style={{ color: '#4ade8066', flexShrink: 0 }}>|</span>
       <span style={{ flex: 1 }}>
-        {awayGoals.length === 0 && <span style={{ color: '#4ade8066' }}>{awayTeam}</span>}
         {awayGoals.map(formatGoal).join(' · ')}
       </span>
     </div>
