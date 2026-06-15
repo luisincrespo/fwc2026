@@ -54,7 +54,12 @@ export function App() {
   useEffect(() => {
     load();
     const id = setInterval(load, POLL_INTERVAL);
-    return () => clearInterval(id);
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
 
   return (
