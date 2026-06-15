@@ -80,7 +80,11 @@ export function LiveMatchBanner({ matches }: Props) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
+        Live now
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {matches.map((m, i) => (
         <div
           key={i}
@@ -105,6 +109,7 @@ export function LiveMatchBanner({ matches }: Props) {
           <DistributionBar dist={m.distribution} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />
         </div>
       ))}
+      </div>
     </div>
   );
 }
