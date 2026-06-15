@@ -13,6 +13,7 @@ export interface EspnGoal {
 
 export interface EspnMatch {
   kickoffUtc: string;
+  espnHomeTeam: string;
   minute: string | null;
   homeScore: number | null;
   awayScore: number | null;
@@ -65,6 +66,7 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
 
     matches.push({
       kickoffUtc: event['date'] as string,
+      espnHomeTeam: (home['team'] as Record<string, string>)['displayName'] ?? '',
       minute: state === 'post' ? 'FT'
         : statusName === 'STATUS_HALFTIME' ? 'HT'
         : state === 'in' ? (status['displayClock'] as string)
