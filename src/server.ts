@@ -256,20 +256,33 @@ app.get('/api/daily-recap', async (req, res) => {
     const withToday = leaderboard.map((p) => {
       const preds = bracketMap.get(p.id) ?? [];
       let pointsToday = 0;
+      const breakdown = [];
       for (const game of todayCompleted) {
         const pred = preds.find(
           (pr) => pr.home_team === game.home_team_name && pr.away_team === game.away_team_name,
         );
         if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
         const stage = game.stage === 'group' ? 'group' : 'ko';
-        pointsToday += calculateLivePoints(
+        const points = calculateLivePoints(
           { home: pred.predicted_home, away: pred.predicted_away },
           { home: game.actual_home_score!, away: game.actual_away_score! },
           stage,
           rules,
         );
+        pointsToday += points;
+        breakdown.push({
+          homeTeam: game.home_team_name,
+          awayTeam: game.away_team_name,
+          homeCode: game.home_flag,
+          awayCode: game.away_flag,
+          homeGoals: game.actual_home_score!,
+          awayGoals: game.actual_away_score!,
+          predictedHome: pred.predicted_home,
+          predictedAway: pred.predicted_away,
+          points,
+        });
       }
-      return { ...p, pointsToday, preTodayPoints: p.total_points - pointsToday };
+      return { ...p, pointsToday, breakdown, preTodayPoints: p.total_points - pointsToday };
     });
 
     const preSorted = [...withToday].sort(
@@ -299,6 +312,7 @@ app.get('/api/daily-recap', async (req, res) => {
           name: p.name,
           pointsToday: entry.pointsToday,
           totalPoints: p.total_points,
+          breakdown: entry.breakdown,
         };
       }),
     });

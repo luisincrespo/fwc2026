@@ -1,7 +1,7 @@
 import type { LeaderboardEntry, LivePrediction } from '../types';
 import { BaseLeaderboard, cell, type ColumnDef } from './BaseLeaderboard';
+import { MatchBreakdownRow } from './MatchBreakdownRow';
 import { RankDelta } from './RankDelta';
-import { Flag } from './Flag';
 
 interface Props {
   entries: LeaderboardEntry[];
@@ -10,29 +10,16 @@ interface Props {
 }
 
 function PredictionRow({ pred }: { pred: LivePrediction }) {
-  const isExact = pred.predictedHome === pred.liveHome && pred.predictedAway === pred.liveAway;
   return (
-    <tr style={{ background: '#0a1628' }}>
-      <td colSpan={6} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 13, color: '#94a3b8' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Flag code={pred.homeCode} size={16} /> {pred.homeTeam} vs {pred.awayTeam} <Flag code={pred.awayCode} size={16} />
-          </span>
-          <span>
-            Live: <strong style={{ color: '#e2e8f0' }}>{pred.liveHome}–{pred.liveAway}</strong>
-          </span>
-          <span>
-            Prediction:{' '}
-            <strong style={{ color: isExact ? '#4ade80' : '#e2e8f0' }}>
-              {pred.predictedHome}–{pred.predictedAway}
-            </strong>
-          </span>
-          <span style={{ color: pred.points > 0 ? '#4ade80' : '#475569', fontWeight: 600 }}>
-            {pred.points > 0 ? `+${pred.points} pts` : '0 pts'}
-          </span>
-        </div>
-      </td>
-    </tr>
+    <MatchBreakdownRow
+      homeTeam={pred.homeTeam} awayTeam={pred.awayTeam}
+      homeCode={pred.homeCode} awayCode={pred.awayCode}
+      homeGoals={pred.liveHome} awayGoals={pred.liveAway}
+      predictedHome={pred.predictedHome} predictedAway={pred.predictedAway}
+      points={pred.points}
+      scoreLabel="Live"
+      colSpan={6}
+    />
   );
 }
 

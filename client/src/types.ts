@@ -63,6 +63,18 @@ export interface ScheduleResponse {
   matches: ScheduledMatch[];
 }
 
+export interface DailyBreakdown {
+  homeTeam: string;
+  awayTeam: string;
+  homeCode: string;
+  awayCode: string;
+  homeGoals: number;
+  awayGoals: number;
+  predictedHome: number;
+  predictedAway: number;
+  points: number;
+}
+
 export interface DailyEntry {
   rank: number;
   preTodayRank: number;
@@ -71,6 +83,7 @@ export interface DailyEntry {
   name: string;
   pointsToday: number;
   totalPoints: number;
+  breakdown: DailyBreakdown[];
 }
 
 export interface DailyRecapResponse {

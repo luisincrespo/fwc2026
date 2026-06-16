@@ -1,9 +1,24 @@
-import type { DailyRecapResponse, DailyEntry } from '../types';
+import type { DailyRecapResponse, DailyEntry, DailyBreakdown } from '../types';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
+import { MatchBreakdownRow } from './MatchBreakdownRow';
 
 interface Props {
   data: DailyRecapResponse | null;
   loading: boolean;
+}
+
+function BreakdownRow({ pred }: { pred: DailyBreakdown }) {
+  return (
+    <MatchBreakdownRow
+      homeTeam={pred.homeTeam} awayTeam={pred.awayTeam}
+      homeCode={pred.homeCode} awayCode={pred.awayCode}
+      homeGoals={pred.homeGoals} awayGoals={pred.awayGoals}
+      predictedHome={pred.predictedHome} predictedAway={pred.predictedAway}
+      points={pred.points}
+      scoreLabel="Result"
+      colSpan={4}
+    />
+  );
 }
 
 const columns: ColumnDef<DailyEntry>[] = [
@@ -21,7 +36,14 @@ const columns: ColumnDef<DailyEntry>[] = [
     header: 'Name',
     align: 'left',
     tdStyle: (e) => ({ fontWeight: e.rank <= 3 ? 600 : 400 }),
-    render: (e) => e.name,
+    render: (e, isExpanded) => (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {e.name}
+        {e.breakdown.length > 0 && (
+          <span style={{ color: '#475569', fontSize: 11 }}>{isExpanded ? '▲' : '▼'}</span>
+        )}
+      </span>
+    ),
   },
   {
     header: 'Pts today',
@@ -64,5 +86,12 @@ export function DailyMovement({ data, loading }: Props) {
     );
   }
 
-  return <BaseLeaderboard entries={data.leaderboard} columns={columns} />;
+  return (
+    <BaseLeaderboard
+      entries={data.leaderboard}
+      columns={columns}
+      isExpandable={(e) => e.breakdown.length > 0}
+      renderExpanded={(e) => e.breakdown.map((pred, j) => <BreakdownRow key={j} pred={pred} />)}
+    />
+  );
 }
