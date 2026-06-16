@@ -205,11 +205,119 @@ app.get('/api/live-leaderboard', async (req, res) => {
   }
 });
 
-app.get('/api/schedule', async (req, res) => {
+app.get('/api/daily-recap', async (req, res) => {
   try {
-    const allGames = await getGames();
+    const [{ leaderboard, rules }, allGames] = await Promise.all([
+      getOfficialLeaderboard(),
+      getGames(),
+    ]);
+
     const from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
     const to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+
+    const todayCompleted = allGames.filter((g) => {
+      const t = new Date(g.scheduled_at);
+      return t >= from && t <= to && g.is_completed && g.actual_home_score != null && g.actual_away_score != null;
+    });
+
+    const sorted = [...leaderboard].sort(
+      (a, b) => b.total_points - a.total_points || a.name.localeCompare(b.name),
+    );
+    const officialRankMap = new Map<number, number>();
+    for (let i = 0; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const rank = prev && prev.total_points === sorted[i].total_points
+        ? officialRankMap.get(prev.id)!
+        : i + 1;
+      officialRankMap.set(sorted[i].id, rank);
+    }
+
+    if (todayCompleted.length === 0) {
+      return res.json({
+        updatedAt: new Date().toISOString(),
+        todayMatchCount: 0,
+        leaderboard: sorted.map((p) => ({
+          rank: officialRankMap.get(p.id) ?? 1,
+          preTodayRank: officialRankMap.get(p.id) ?? 1,
+          dailyDelta: 0,
+          id: p.id,
+          name: p.name,
+          pointsToday: 0,
+          totalPoints: p.total_points,
+        })),
+      });
+    }
+
+    const brackets = await Promise.all(
+      leaderboard.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds }))),
+    );
+    const bracketMap = new Map(brackets.map((b) => [b.id, b.preds]));
+
+    const withToday = leaderboard.map((p) => {
+      const preds = bracketMap.get(p.id) ?? [];
+      let pointsToday = 0;
+      for (const game of todayCompleted) {
+        const pred = preds.find(
+          (pr) => pr.home_team === game.home_team_name && pr.away_team === game.away_team_name,
+        );
+        if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
+        const stage = game.stage === 'group' ? 'group' : 'ko';
+        pointsToday += calculateLivePoints(
+          { home: pred.predicted_home, away: pred.predicted_away },
+          { home: game.actual_home_score!, away: game.actual_away_score! },
+          stage,
+          rules,
+        );
+      }
+      return { ...p, pointsToday, preTodayPoints: p.total_points - pointsToday };
+    });
+
+    const preSorted = [...withToday].sort(
+      (a, b) => b.preTodayPoints - a.preTodayPoints || a.name.localeCompare(b.name),
+    );
+    const preTodayRankMap = new Map<number, number>();
+    for (let i = 0; i < preSorted.length; i++) {
+      const prev = preSorted[i - 1];
+      const rank = prev && prev.preTodayPoints === preSorted[i].preTodayPoints
+        ? preTodayRankMap.get(prev.id)!
+        : i + 1;
+      preTodayRankMap.set(preSorted[i].id, rank);
+    }
+
+    return res.json({
+      updatedAt: new Date().toISOString(),
+      todayMatchCount: todayCompleted.length,
+      leaderboard: sorted.map((p) => {
+        const currentRank = officialRankMap.get(p.id) ?? 0;
+        const preTodayRank = preTodayRankMap.get(p.id) ?? 0;
+        const entry = withToday.find((e) => e.id === p.id)!;
+        return {
+          rank: currentRank,
+          preTodayRank,
+          dailyDelta: preTodayRank - currentRank,
+          id: p.id,
+          name: p.name,
+          pointsToday: entry.pointsToday,
+          totalPoints: p.total_points,
+        };
+      }),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build daily recap' });
+  }
+});
+
+app.get('/api/schedule', async (req, res) => {
+  try {
+    const [allGames, espnMatches] = await Promise.all([getGames(), getEspnMatches()]);
+    const from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
+    const to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+
+    const espnByTime = new Map<string, typeof espnMatches[0]>();
+    for (const e of espnMatches) {
+      espnByTime.set(e.kickoffUtc.slice(0, 16), e);
+    }
 
     const todayGames = allGames
       .filter((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
@@ -222,6 +330,15 @@ app.get('/api/schedule', async (req, res) => {
       else if (elapsedMin >= 0) status = 'LIVE';
       else status = 'UPCOMING';
 
+      let goals: EspnGoal[] = [];
+      if (status === 'FINISHED') {
+        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+        if (espn) {
+          const flipped = isEspnFlipped(espn.espnHomeTeam, g.home_team_name);
+          goals = flipped ? flipGoals(espn.goals) : espn.goals;
+        }
+      }
+
       return {
         homeTeam: g.home_team_name,
         awayTeam: g.away_team_name,
@@ -231,6 +348,7 @@ app.get('/api/schedule', async (req, res) => {
         status,
         homeGoals: g.actual_home_score,
         awayGoals: g.actual_away_score,
+        goals,
       };
     });
 

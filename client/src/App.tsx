@@ -1,13 +1,17 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { fetchLeaderboard, fetchSchedule } from './api';
-import type { LiveLeaderboardResponse, ScheduledMatch } from './types';
+import { fetchLeaderboard, fetchSchedule, fetchDailyRecap } from './api';
+import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
+import { DayMovers } from './components/DayMovers';
 import { Leaderboard } from './components/Leaderboard';
+import { DailyMovement } from './components/DailyMovement';
 import { UpcomingMatches } from './components/UpcomingMatches';
 import { FinishedMatches } from './components/FinishedMatches';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
+
+type Tab = 'live' | 'today';
 
 export function App() {
   const [data, setData] = useState<LiveLeaderboardResponse | null>(null);
@@ -16,6 +20,10 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
+  const [activeTab, setActiveTab] = useState<Tab>('live');
+  const [dailyData, setDailyData] = useState<DailyRecapResponse | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const dailyFetched = useRef(false);
   const prevRanks = useRef<Map<number, number>>(new Map());
 
   const load = useCallback(async () => {
@@ -25,7 +33,6 @@ export function App() {
       setUpcoming(schedule.matches.filter((m) => m.status !== 'FINISHED' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
       setFinished(schedule.matches.filter((m) => m.status === 'FINISHED'));
 
-      // Compute which participants changed rank since last fetch
       const flashing = new Map<number, 'up' | 'down'>();
       if (prevRanks.current.size > 0) {
         for (const entry of result.leaderboard) {
@@ -62,9 +69,17 @@ export function App() {
     };
   }, [load]);
 
+  useEffect(() => {
+    if (activeTab === 'today' && !dailyFetched.current) {
+      dailyFetched.current = true;
+      setDailyLoading(true);
+      fetchDailyRecap().then(setDailyData).finally(() => setDailyLoading(false));
+    }
+  }, [activeTab]);
+
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>
             Quiniela Popular
@@ -81,6 +96,28 @@ export function App() {
         )}
       </div>
 
+      <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 0 }}>
+        {(['live', 'today'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '8px 18px',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              background: 'none',
+              color: activeTab === tab ? '#f1f5f9' : '#475569',
+              borderBottom: activeTab === tab ? '2px solid #22c55e' : '2px solid transparent',
+              marginBottom: -1,
+            }}
+          >
+            {tab === 'live' ? '📡 Live' : '📅 Today'}
+          </button>
+        ))}
+      </div>
+
       {loading && (
         <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Loading…</p>
       )}
@@ -89,9 +126,8 @@ export function App() {
         <p style={{ color: '#ef4444', textAlign: 'center', padding: 20 }}>{error}</p>
       )}
 
-      {data && (
+      {data && activeTab === 'live' && (
         <>
-          <FinishedMatches matches={finished} />
           <UpcomingMatches matches={upcoming} />
           <LiveMatchBanner matches={data.liveMatches} />
           {data.liveMatches.length > 0 && (
@@ -107,6 +143,14 @@ export function App() {
             hasLive={data.liveMatches.length > 0}
             flashMap={flashMap}
           />
+        </>
+      )}
+
+      {data && activeTab === 'today' && (
+        <>
+          <FinishedMatches matches={finished} />
+          {dailyData && <DayMovers entries={dailyData.leaderboard} />}
+          <DailyMovement data={dailyData} loading={dailyLoading} />
         </>
       )}
     </div>

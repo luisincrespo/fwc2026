@@ -55,9 +55,26 @@ export interface ScheduledMatch {
   status: 'UPCOMING' | 'LIVE' | 'FINISHED';
   homeGoals: number | null;
   awayGoals: number | null;
+  goals: GoalEvent[];
 }
 
 export interface ScheduleResponse {
   updatedAt: string;
   matches: ScheduledMatch[];
+}
+
+export interface DailyEntry {
+  rank: number;
+  preTodayRank: number;
+  dailyDelta: number;
+  id: number;
+  name: string;
+  pointsToday: number;
+  totalPoints: number;
+}
+
+export interface DailyRecapResponse {
+  updatedAt: string;
+  todayMatchCount: number;
+  leaderboard: DailyEntry[];
 }

@@ -6,35 +6,40 @@ interface Props {
   matches: LiveMatch[];
 }
 
-function GoalList({ goals, homeTeam, awayTeam }: { goals: GoalEvent[]; homeTeam: string; awayTeam: string }) {
+function formatSideGoals(goals: GoalEvent[]): string {
+  const grouped = new Map<string, string[]>();
+  for (const g of goals) {
+    const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
+    const key = `${g.scorer}${suffix}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(g.minute);
+  }
+  return [...grouped.entries()].map(([name, minutes]) => `${name} ${minutes.map((m) => `⚽ ${m}`).join(' ')}`).join(' · ');
+}
+
+function GoalList({ goals }: { goals: GoalEvent[] }) {
   const homeGoals = goals.filter((g) => g.team === 'home');
   const awayGoals = goals.filter((g) => g.team === 'away');
-
-  function formatGoal(g: GoalEvent) {
-    const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
-    return `⚽ ${g.scorer}${suffix} ${g.minute}`;
-  }
 
   return (
     <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#86efac' }}>
       <span style={{ flex: 1, textAlign: 'right' }}>
-        {homeGoals.map(formatGoal).join(' · ')}
+        {formatSideGoals(homeGoals)}
       </span>
       <span style={{ color: '#4ade8066', flexShrink: 0 }}>|</span>
       <span style={{ flex: 1 }}>
-        {awayGoals.map(formatGoal).join(' · ')}
+        {formatSideGoals(awayGoals)}
       </span>
     </div>
   );
 }
-
 
 export function LiveMatchBanner({ matches }: Props) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const label = (
     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
-      Live now
+      Live games
     </div>
   );
 
@@ -112,7 +117,7 @@ export function LiveMatchBanner({ matches }: Props) {
                   }
                 />
               </div>
-              {isExpanded && <GoalList goals={m.goals} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />}
+              {isExpanded && <GoalList goals={m.goals} />}
             </div>
           );
         })}

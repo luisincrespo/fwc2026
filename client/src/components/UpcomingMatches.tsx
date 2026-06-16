@@ -11,7 +11,7 @@ export function UpcomingMatches({ matches }: Props) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1, color: '#475569', textTransform: 'uppercase', marginBottom: 8 }}>
-        Upcoming today
+        Upcoming games
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {matches.map((m, i) => {
