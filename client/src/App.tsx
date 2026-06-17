@@ -22,6 +22,7 @@ export function App() {
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
   const [activeTab, setActiveTab] = useState<Tab>('live');
   const [hasPendingResults, setHasPendingResults] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [dailyData, setDailyData] = useState<DailyRecapResponse | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const dailyFetched = useRef(false);
@@ -90,12 +91,25 @@ export function App() {
             Live Leaderboard — World Cup 2026
           </p>
         </div>
-        {data && (
-          <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-            <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>
-            <div>Refreshes every 5 min</div>
-          </div>
-        )}
+        <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
+          {data && <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>}
+          <button
+            onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
+            disabled={refreshing || loading}
+            style={{
+              marginTop: 4,
+              background: 'none',
+              border: '1px solid #334155',
+              borderRadius: 6,
+              color: refreshing ? '#334155' : '#64748b',
+              fontSize: 12,
+              padding: '3px 10px',
+              cursor: refreshing ? 'default' : 'pointer',
+            }}
+          >
+            {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 0 }}>
