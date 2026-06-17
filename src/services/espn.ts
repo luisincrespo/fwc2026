@@ -21,18 +21,15 @@ export interface EspnMatch {
   goals: EspnGoal[];
 }
 
-export async function getEspnMatches(): Promise<EspnMatch[]> {
-  const cacheKey = 'espn:scoreboard';
-  const cached = cache.get<EspnMatch[]>(cacheKey);
-  if (cached) return cached;
+const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
 
-  const res = await axios.get(
-    'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
-  );
+function utcDateStr(offsetDays = 0): string {
+  const d = new Date(Date.now() + offsetDays * 86400000);
+  return d.toISOString().slice(0, 10).replace(/-/g, '');
+}
 
-  const events: Record<string, unknown>[] = res.data.events ?? [];
+function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
   const matches: EspnMatch[] = [];
-
   for (const event of events) {
     const comps = event['competitions'] as Record<string, unknown>[];
     if (!comps?.length) continue;
@@ -77,6 +74,31 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
       awayScore: away['score'] != null ? Number(away['score']) : null,
       goals,
     });
+  }
+  return matches;
+}
+
+export async function getEspnMatches(): Promise<EspnMatch[]> {
+  const today = utcDateStr(0);
+  const yesterday = utcDateStr(-1);
+  const cacheKey = `espn:scoreboard:${today}`;
+  const cached = cache.get<EspnMatch[]>(cacheKey);
+  if (cached) return cached;
+
+  // Fetch both UTC dates so local evenings that cross midnight UTC are covered
+  const [resToday, resYesterday] = await Promise.all([
+    axios.get(`${BASE}?dates=${today}`),
+    axios.get(`${BASE}?dates=${yesterday}`),
+  ]);
+
+  const seenKickoffs = new Set<string>();
+  const matches: EspnMatch[] = [];
+
+  for (const m of [...parseEvents(resToday.data.events ?? []), ...parseEvents(resYesterday.data.events ?? [])]) {
+    if (!seenKickoffs.has(m.kickoffUtc)) {
+      seenKickoffs.add(m.kickoffUtc);
+      matches.push(m);
+    }
   }
 
   cache.set(cacheKey, matches, TWO_MIN);
