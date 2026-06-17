@@ -54,6 +54,10 @@ export function App() {
         setFlashMap(flashing);
         setTimeout(() => setFlashMap(new Map()), 1500);
       }
+
+      if (dailyFetched.current) {
+        fetchDailyRecap(bust).then(setDailyData);
+      }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
     } finally {
@@ -94,15 +98,7 @@ export function App() {
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
           {data && <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>}
           <button
-            onClick={async () => {
-              setRefreshing(true);
-              await load(true);
-              if (dailyFetched.current) {
-                setDailyLoading(true);
-                fetchDailyRecap(true).then(setDailyData).finally(() => setDailyLoading(false));
-              }
-              setRefreshing(false);
-            }}
+            onClick={async () => { setRefreshing(true); await load(true); setRefreshing(false); }}
             disabled={refreshing || loading}
             style={{
               marginTop: 4,
