@@ -21,6 +21,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
   const [activeTab, setActiveTab] = useState<Tab>('live');
+  const [hasPendingResults, setHasPendingResults] = useState(false);
   const [dailyData, setDailyData] = useState<DailyRecapResponse | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const dailyFetched = useRef(false);
@@ -32,6 +33,7 @@ export function App() {
       const liveKeys = new Set(result.liveMatches.map((m) => `${m.homeTeam}|${m.awayTeam}`));
       setUpcoming(schedule.matches.filter((m) => m.status !== 'FINISHED' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
       setFinished(schedule.matches.filter((m) => m.status === 'FINISHED'));
+      setHasPendingResults(schedule.hasPendingResults);
 
       const flashing = new Map<number, 'up' | 'down'>();
       if (prevRanks.current.size > 0) {
@@ -124,6 +126,23 @@ export function App() {
 
       {error && (
         <p style={{ color: '#ef4444', textAlign: 'center', padding: 20 }}>{error}</p>
+      )}
+
+      {hasPendingResults && (
+        <div style={{
+          background: '#1e293b',
+          borderRadius: 8,
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          fontSize: 13,
+          color: '#94a3b8',
+          marginBottom: 16,
+        }}>
+          <span>⏳</span>
+          <span>Official standings may not yet reflect recently finished matches — updates every 5 min.</span>
+        </div>
       )}
 
       {data && activeTab === 'live' && (

@@ -61,6 +61,7 @@ export interface ScheduledMatch {
 export interface ScheduleResponse {
   updatedAt: string;
   matches: ScheduledMatch[];
+  hasPendingResults: boolean;
 }
 
 export interface DailyBreakdown {

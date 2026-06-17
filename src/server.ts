@@ -337,6 +337,8 @@ app.get('/api/schedule', async (req, res) => {
       .filter((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
+    let hasPendingResults = false;
+
     const matches = todayGames.map((g) => {
       const elapsedMin = (Date.now() - new Date(g.scheduled_at).getTime()) / 60000;
       let status: 'UPCOMING' | 'LIVE' | 'FINISHED';
@@ -344,13 +346,20 @@ app.get('/api/schedule', async (req, res) => {
       else if (elapsedMin >= 0) status = 'LIVE';
       else status = 'UPCOMING';
 
+      const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+      if (espn?.minute === 'FT') status = 'FINISHED';
+
+      const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, g.home_team_name) : false;
+
       let goals: EspnGoal[] = [];
-      if (status === 'FINISHED') {
-        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
-        if (espn) {
-          const flipped = isEspnFlipped(espn.espnHomeTeam, g.home_team_name);
-          goals = flipped ? flipGoals(espn.goals) : espn.goals;
-        }
+      let homeGoals: number | null = g.actual_home_score;
+      let awayGoals: number | null = g.actual_away_score;
+
+      if (status === 'FINISHED' && espn) {
+        goals = flipped ? flipGoals(espn.goals) : espn.goals;
+        if (homeGoals == null) homeGoals = (flipped ? espn.awayScore : espn.homeScore) ?? null;
+        if (awayGoals == null) awayGoals = (flipped ? espn.homeScore : espn.awayScore) ?? null;
+        if (!g.is_completed) hasPendingResults = true;
       }
 
       return {
@@ -360,13 +369,13 @@ app.get('/api/schedule', async (req, res) => {
         awayCode: g.away_flag,
         kickoffUtc: g.scheduled_at,
         status,
-        homeGoals: g.actual_home_score,
-        awayGoals: g.actual_away_score,
+        homeGoals,
+        awayGoals,
         goals,
       };
     });
 
-    res.json({ updatedAt: new Date().toISOString(), matches });
+    res.json({ updatedAt: new Date().toISOString(), matches, hasPendingResults });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch schedule' });
