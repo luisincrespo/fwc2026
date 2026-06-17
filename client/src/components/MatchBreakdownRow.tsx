@@ -19,7 +19,7 @@ export function MatchBreakdownRow({
   homeGoals, awayGoals, predictedHome, predictedAway,
   points, scoreLabel = 'Result', colSpan = 4,
 }: Props) {
-  const isExact = predictedHome === homeGoals && predictedAway === awayGoals;
+  const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : '#475569';
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
@@ -32,11 +32,9 @@ export function MatchBreakdownRow({
           </span>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction:{' '}
-            <strong style={{ color: isExact ? '#4ade80' : '#e2e8f0' }}>
-              {predictedHome}–{predictedAway}
-            </strong>
+            <strong style={{ color: tierColor }}>{predictedHome}–{predictedAway}</strong>
           </span>
-          <span style={{ width: 55, flexShrink: 0, textAlign: 'right', color: points > 0 ? '#4ade80' : '#475569', fontWeight: 600 }}>
+          <span style={{ width: 55, flexShrink: 0, textAlign: 'right', color: tierColor, fontWeight: 600 }}>
             {points > 0 ? `+${points} pts` : '0 pts'}
           </span>
         </div>

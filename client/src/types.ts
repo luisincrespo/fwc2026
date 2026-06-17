@@ -6,6 +6,26 @@ export interface GoalEvent {
   penaltyKick: boolean;
 }
 
+export interface MatchPicks {
+  home: number;
+  draw: number;
+  away: number;
+  topScores: { score: string; count: number }[];
+  total: number;
+}
+
+export interface MatchPerformanceEntry {
+  name: string;
+  predicted: string;
+}
+
+export interface MatchPerformance {
+  exact: MatchPerformanceEntry[];
+  correct: MatchPerformanceEntry[];
+  miss: MatchPerformanceEntry[];
+  total: number;
+}
+
 export interface LiveMatch {
   homeTeam: string;
   awayTeam: string;
@@ -15,6 +35,7 @@ export interface LiveMatch {
   awayGoals: number;
   minute: string | null;
   goals: GoalEvent[];
+  performance?: MatchPerformance;
 }
 
 export interface LivePrediction {
@@ -56,6 +77,8 @@ export interface ScheduledMatch {
   homeGoals: number | null;
   awayGoals: number | null;
   goals: GoalEvent[];
+  picks?: MatchPicks;
+  performance?: MatchPerformance;
 }
 
 export interface ScheduleResponse {

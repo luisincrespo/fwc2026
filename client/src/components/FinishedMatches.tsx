@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import type { ScheduledMatch, GoalEvent } from '../types';
 import { MatchRow } from './MatchRow';
+import { PerformanceBar } from './PerformanceBar';
 
 interface Props {
   matches: ScheduledMatch[];
@@ -35,8 +35,6 @@ function GoalList({ goals }: { goals: GoalEvent[] }) {
 }
 
 export function FinishedMatches({ matches }: Props) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-
   if (matches.length === 0) return null;
 
   return (
@@ -45,44 +43,36 @@ export function FinishedMatches({ matches }: Props) {
         Finished games
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {matches.map((m, i) => {
-          const isExpanded = expandedIdx === i;
-          const hasGoals = m.goals?.length > 0;
-          return (
-            <div
-              key={i}
-              onClick={() => hasGoals && setExpandedIdx(isExpanded ? null : i)}
-              style={{
-                background: '#1e293b',
-                borderRadius: 8,
-                padding: '10px 16px',
-                fontSize: 14,
-                color: '#cbd5e1',
-                cursor: hasGoals ? 'pointer' : 'default',
-              }}
-            >
-              <div style={{ position: 'relative' }}>
-                {hasGoals && (
-                  <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: '#475569' }}>
-                    {isExpanded ? '▲' : '▼'}
-                  </span>
-                )}
-                <MatchRow
-                  homeTeam={m.homeTeam}
-                  awayTeam={m.awayTeam}
-                  homeCode={m.homeCode}
-                  awayCode={m.awayCode}
-                  center={
-                    <span style={{ fontWeight: 700, fontSize: 16, color: '#94a3b8', letterSpacing: 2 }}>
-                      {m.homeGoals} – {m.awayGoals}
-                    </span>
-                  }
-                />
+        {matches.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              background: '#1e293b',
+              borderRadius: 8,
+              padding: '10px 16px',
+              fontSize: 14,
+              color: '#cbd5e1',
+            }}
+          >
+            <MatchRow
+              homeTeam={m.homeTeam}
+              awayTeam={m.awayTeam}
+              homeCode={m.homeCode}
+              awayCode={m.awayCode}
+              center={
+                <span style={{ fontWeight: 700, fontSize: 16, color: '#94a3b8', letterSpacing: 2 }}>
+                  {m.homeGoals} – {m.awayGoals}
+                </span>
+              }
+            />
+            {m.goals?.length > 0 && <GoalList goals={m.goals} />}
+            {m.performance && m.performance.total > 0 && (
+              <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
+                <PerformanceBar performance={m.performance} />
               </div>
-              {isExpanded && <GoalList goals={m.goals} />}
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

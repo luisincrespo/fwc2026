@@ -21,6 +21,8 @@ export async function fetchSchedule(bust = false): Promise<ScheduleResponse> {
   const { from, to } = todayRange();
   const params = new URLSearchParams({ from, to });
   if (bust) params.set('bust', 'true');
+  const mock = new URLSearchParams(window.location.search).get('mock');
+  if (mock === 'true') params.set('mock', 'true');
   const res = await fetch(`/api/schedule?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
@@ -30,6 +32,8 @@ export async function fetchDailyRecap(bust = false): Promise<DailyRecapResponse>
   const { from, to } = todayRange();
   const params = new URLSearchParams({ from, to });
   if (bust) params.set('bust', 'true');
+  const mock = new URLSearchParams(window.location.search).get('mock');
+  if (mock === 'true') params.set('mock', 'true');
   const res = await fetch(`/api/daily-recap?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();

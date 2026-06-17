@@ -166,6 +166,23 @@ app.get('/api/live-leaderboard', async (req, res) => {
       return { ...p, livePoints, totalPoints: p.total_points + livePoints, liveBreakdown };
     });
 
+    // Aggregate prediction performance per live match from liveBreakdown
+    type PerfEntry = { name: string; predicted: string };
+    type PerfAgg = { exact: PerfEntry[]; correct: PerfEntry[]; miss: PerfEntry[]; total: number };
+    const livePerfMap = new Map<string, PerfAgg>();
+    for (const m of liveMatches) livePerfMap.set(`${m.homeTeam}|${m.awayTeam}`, { exact: [], correct: [], miss: [], total: 0 });
+    for (const p of withLive) {
+      for (const bd of p.liveBreakdown) {
+        const agg = livePerfMap.get(`${bd.homeTeam}|${bd.awayTeam}`);
+        if (!agg) continue;
+        agg.total++;
+        const entry = { name: p.name, predicted: `${bd.predictedHome}-${bd.predictedAway}` };
+        if (bd.points >= 11) agg.exact.push(entry);
+        else if (bd.points >= 3) agg.correct.push(entry);
+        else agg.miss.push(entry);
+      }
+    }
+
     const liveRanked = [...withLive].sort(
       (a, b) => b.totalPoints - a.totalPoints || a.name.localeCompare(b.name),
     );
@@ -181,16 +198,22 @@ app.get('/api/live-leaderboard', async (req, res) => {
 
     return res.json({
       updatedAt: new Date().toISOString(),
-      liveMatches: liveMatches.map((m) => ({
-        homeTeam: m.homeTeam,
-        awayTeam: m.awayTeam,
-        homeCode: m.homeCode,
-        awayCode: m.awayCode,
-        homeGoals: m.homeGoals,
-        awayGoals: m.awayGoals,
-        minute: m.minute,
-        goals: m.goals,
-      })),
+      liveMatches: liveMatches.map((m) => {
+        const perf = livePerfMap.get(`${m.homeTeam}|${m.awayTeam}`);
+        return {
+          homeTeam: m.homeTeam,
+          awayTeam: m.awayTeam,
+          homeCode: m.homeCode,
+          awayCode: m.awayCode,
+          homeGoals: m.homeGoals,
+          awayGoals: m.awayGoals,
+          minute: m.minute,
+          goals: m.goals,
+          performance: perf && perf.total > 0
+            ? { exact: perf.exact, correct: perf.correct, miss: perf.miss, total: perf.total }
+            : undefined,
+        };
+      }),
       leaderboard: liveRanked.map((p) => {
         const officialRank = officialRankMap.get(p.id) ?? 0;
         const liveRank = liveRankMap.get(p.id) ?? 0;
@@ -215,18 +238,52 @@ app.get('/api/live-leaderboard', async (req, res) => {
 app.get('/api/daily-recap', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();
-    const [{ leaderboard, rules }, allGames] = await Promise.all([
+    const isMock = req.query['mock'] === 'true';
+    const [{ leaderboard, rules }, allGames, espnMatches] = await Promise.all([
       getOfficialLeaderboard(),
       getGames(),
+      isMock ? getEspnMatches() : Promise.resolve([] as Awaited<ReturnType<typeof getEspnMatches>>),
     ]);
 
-    const from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
-    const to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+    let from: Date, to: Date;
+    if (isMock) {
+      const nextDate = allGames
+        .filter((g) => !g.is_completed && new Date(g.scheduled_at) > new Date())
+        .map((g) => g.scheduled_at.slice(0, 10))
+        .sort()[0];
+      from = nextDate ? new Date(`${nextDate}T00:00:00Z`) : new Date(req.query['from'] as string);
+      to = nextDate ? new Date(`${nextDate}T23:59:59.999Z`) : new Date(req.query['to'] as string);
+    } else {
+      from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
+      to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+    }
 
-    const todayCompleted = allGames.filter((g) => {
-      const t = new Date(g.scheduled_at);
-      return t >= from && t <= to && g.is_completed && g.actual_home_score != null && g.actual_away_score != null;
-    });
+    const espnByTime = new Map<string, typeof espnMatches[0]>();
+    for (const e of espnMatches) espnByTime.set(e.kickoffUtc.slice(0, 16), e);
+
+    const todayCompleted = allGames
+      .filter((g) => {
+        const t = new Date(g.scheduled_at);
+        if (t < from || t > to) return false;
+        if (!isMock) return g.is_completed && g.actual_home_score != null && g.actual_away_score != null;
+        const elapsedMin = (Date.now() - t.getTime()) / 60000;
+        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+        const finished = g.is_completed || elapsedMin >= 150 || espn?.minute === 'FT';
+        const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, g.home_team_name) : false;
+        const homeScore = g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null;
+        const awayScore = g.actual_away_score ?? (flipped ? espn?.homeScore : espn?.awayScore) ?? null;
+        return finished && homeScore != null && awayScore != null;
+      })
+      .map((g) => {
+        if (!isMock) return g;
+        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+        const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, g.home_team_name) : false;
+        return {
+          ...g,
+          actual_home_score: g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null,
+          actual_away_score: g.actual_away_score ?? (flipped ? espn?.homeScore : espn?.awayScore) ?? null,
+        };
+      });
 
     const sorted = [...leaderboard].sort(
       (a, b) => b.total_points - a.total_points || a.name.localeCompare(b.name),
@@ -333,9 +390,28 @@ app.get('/api/daily-recap', async (req, res) => {
 app.get('/api/schedule', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();
-    const [allGames, espnMatches] = await Promise.all([getGames(), getEspnMatches()]);
-    const from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
-    const to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+    const [allGames, espnMatches, { leaderboard: participants, rules }] = await Promise.all([
+      getGames(), getEspnMatches(), getOfficialLeaderboard(),
+    ]);
+
+    let from: Date, to: Date;
+    if (req.query['mock'] === 'true') {
+      // Shift window to the next day that has any uncompleted games
+      const nextDate = allGames
+        .filter((g) => !g.is_completed && new Date(g.scheduled_at) > new Date())
+        .map((g) => g.scheduled_at.slice(0, 10))
+        .sort()[0];
+      if (nextDate) {
+        from = new Date(`${nextDate}T00:00:00Z`);
+        to = new Date(`${nextDate}T23:59:59.999Z`);
+      } else {
+        from = new Date(req.query['from'] as string);
+        to = new Date(req.query['to'] as string);
+      }
+    } else {
+      from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
+      to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+    }
 
     const espnByTime = new Map<string, typeof espnMatches[0]>();
     for (const e of espnMatches) {
@@ -345,6 +421,37 @@ app.get('/api/schedule', async (req, res) => {
     const todayGames = allGames
       .filter((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
+    const now = Date.now();
+    const upcomingGameIds = new Set(
+      todayGames.filter((g) => !g.is_completed && (new Date(g.scheduled_at).getTime() - now) > 0).map((g) => g.game_id),
+    );
+
+    type PicksEntry = { home: number; draw: number; away: number; scores: Map<string, number>; total: number };
+    type PerfParticipant = { name: string; predicted: string };
+    type PerfEntry = { exact: PerfParticipant[]; correct: PerfParticipant[]; miss: PerfParticipant[]; total: number };
+    const picksMap = new Map<number, PicksEntry>();
+    const perfMap = new Map<number, PerfEntry>();
+    let allBracketsWithName: { name: string; preds: Awaited<ReturnType<typeof getBracket>> }[] = [];
+
+    if (todayGames.length > 0) {
+      allBracketsWithName = await Promise.all(
+        participants.map((p) => getBracket(p.id).then((preds) => ({ name: p.name, preds }))),
+      );
+      for (const id of upcomingGameIds) picksMap.set(id, { home: 0, draw: 0, away: 0, scores: new Map(), total: 0 });
+      for (const { preds } of allBracketsWithName) {
+        for (const pred of preds) {
+          if (!upcomingGameIds.has(pred.game_id) || pred.predicted_home == null || pred.predicted_away == null) continue;
+          const entry = picksMap.get(pred.game_id)!;
+          entry.total++;
+          if (pred.predicted_home > pred.predicted_away) entry.home++;
+          else if (pred.predicted_home < pred.predicted_away) entry.away++;
+          else entry.draw++;
+          const key = `${pred.predicted_home}-${pred.predicted_away}`;
+          entry.scores.set(key, (entry.scores.get(key) ?? 0) + 1);
+        }
+      }
+    }
 
     let hasPendingResults = false;
 
@@ -371,6 +478,21 @@ app.get('/api/schedule', async (req, res) => {
         if (!g.is_completed) hasPendingResults = true;
       }
 
+      let picks: { home: number; draw: number; away: number; topScores: { score: string; count: number }[]; total: number } | undefined;
+      if (status === 'UPCOMING' && picksMap.has(g.game_id)) {
+        const p = picksMap.get(g.game_id)!;
+        const topScores = [...p.scores.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([score, count]) => ({ score, count }));
+        picks = { home: p.home, draw: p.draw, away: p.away, topScores, total: p.total };
+      }
+
+      // Track finished game scores for performance computation below
+      if (status === 'FINISHED' && homeGoals != null && awayGoals != null) {
+        perfMap.set(g.game_id, { exact: [], correct: [], miss: [], total: 0 });
+      }
+
       return {
         homeTeam: g.home_team_name,
         awayTeam: g.away_team_name,
@@ -381,10 +503,49 @@ app.get('/api/schedule', async (req, res) => {
         homeGoals,
         awayGoals,
         goals,
+        picks,
+        _gameId: g.game_id,
+        _stage: g.stage,
       };
     });
 
-    res.json({ updatedAt: new Date().toISOString(), matches, hasPendingResults });
+    // Second pass: compute prediction performance for finished matches
+    if (allBracketsWithName.length > 0 && perfMap.size > 0) {
+      const scoreById = new Map(
+        matches
+          .filter((m) => m.status === 'FINISHED' && m.homeGoals != null && m.awayGoals != null)
+          .map((m) => [m._gameId, { home: m.homeGoals as number, away: m.awayGoals as number }]),
+      );
+      for (const { name, preds } of allBracketsWithName) {
+        for (const pred of preds) {
+          const score = scoreById.get(pred.game_id);
+          if (!score || pred.predicted_home == null || pred.predicted_away == null) continue;
+          const agg = perfMap.get(pred.game_id);
+          if (!agg) continue;
+          agg.total++;
+          const pts = calculateLivePoints(
+            { home: pred.predicted_home, away: pred.predicted_away },
+            { home: score.home, away: score.away },
+            pred.stage,
+            rules,
+          );
+          const participant = { name, predicted: `${pred.predicted_home}-${pred.predicted_away}` };
+          if (pts >= 11) agg.exact.push(participant);
+          else if (pts >= 3) agg.correct.push(participant);
+          else agg.miss.push(participant);
+        }
+      }
+    }
+
+    // Strip internal fields and attach performance to finished matches
+    const finalMatches = matches.map(({ _gameId, _stage, ...m }) => ({
+      ...m,
+      performance: m.status === 'FINISHED' && perfMap.has(_gameId) && perfMap.get(_gameId)!.total > 0
+        ? perfMap.get(_gameId)
+        : undefined,
+    }));
+
+    res.json({ updatedAt: new Date().toISOString(), matches: finalMatches, hasPendingResults });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch schedule' });
