@@ -89,10 +89,10 @@ export function App() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>
-            Quiniela Popular
+            Quiniela Popular FWC2026
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            Live Leaderboard — World Cup 2026
+            Live Leaderboard
           </p>
         </div>
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
