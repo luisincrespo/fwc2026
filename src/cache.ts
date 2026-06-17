@@ -10,3 +10,7 @@ export function get<T>(key: string): T | null {
 export function set<T>(key: string, value: T, ttlMs: number): void {
   store.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
+
+export function del(key: string): void {
+  store.delete(key);
+}

@@ -5,6 +5,12 @@ import path from 'path';
 import { getOfficialLeaderboard, getBracket, getGames } from './services/quiniela.js';
 import { getEspnMatches, type EspnGoal } from './services/espn.js';
 import { calculateLivePoints } from './scoring.js';
+import * as cache from './cache.js';
+
+function bustQuinielaCache() {
+  cache.del('quiniela:scores');
+  cache.del('quiniela:games');
+}
 
 const app = express();
 app.use(cors());
@@ -63,6 +69,7 @@ function flipGoals(goals: EspnGoal[]): EspnGoal[] {
 
 app.get('/api/live-leaderboard', async (req, res) => {
   try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
     const [{ leaderboard, rules }, espnMatches, allGames] = await Promise.all([
       getOfficialLeaderboard(),
       getEspnMatches(),
@@ -207,6 +214,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
 
 app.get('/api/daily-recap', async (req, res) => {
   try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
     const [{ leaderboard, rules }, allGames] = await Promise.all([
       getOfficialLeaderboard(),
       getGames(),
@@ -324,6 +332,7 @@ app.get('/api/daily-recap', async (req, res) => {
 
 app.get('/api/schedule', async (req, res) => {
   try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
     const [allGames, espnMatches] = await Promise.all([getGames(), getEspnMatches()]);
     const from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
     const to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');

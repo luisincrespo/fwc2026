@@ -28,9 +28,9 @@ export function App() {
   const dailyFetched = useRef(false);
   const prevRanks = useRef<Map<number, number>>(new Map());
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (bust = false) => {
     try {
-      const [result, schedule] = await Promise.all([fetchLeaderboard(), fetchSchedule()]);
+      const [result, schedule] = await Promise.all([fetchLeaderboard(bust), fetchSchedule(bust)]);
       const liveKeys = new Set(result.liveMatches.map((m) => `${m.homeTeam}|${m.awayTeam}`));
       setUpcoming(schedule.matches.filter((m) => m.status !== 'FINISHED' && !liveKeys.has(`${m.homeTeam}|${m.awayTeam}`)));
       setFinished(schedule.matches.filter((m) => m.status === 'FINISHED'));
@@ -94,7 +94,15 @@ export function App() {
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
           {data && <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>}
           <button
-            onClick={async () => { setRefreshing(true); await load(); setRefreshing(false); }}
+            onClick={async () => {
+              setRefreshing(true);
+              await load(true);
+              if (dailyFetched.current) {
+                setDailyLoading(true);
+                fetchDailyRecap(true).then(setDailyData).finally(() => setDailyLoading(false));
+              }
+              setRefreshing(false);
+            }}
             disabled={refreshing || loading}
             style={{
               marginTop: 4,
@@ -155,7 +163,7 @@ export function App() {
           marginBottom: 16,
         }}>
           <span>⏳</span>
-          <span>Official standings may not yet reflect recently finished matches — updates every 5 min.</span>
+          <span>Official standings may not yet reflect recently finished matches.</span>
         </div>
       )}
 
