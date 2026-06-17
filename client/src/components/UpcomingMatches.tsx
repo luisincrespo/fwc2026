@@ -41,7 +41,7 @@ export function UpcomingMatches({ matches }: Props) {
               />
               {m.picks && m.picks.total > 0 && (
                 <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
-                  <PicksBar picks={m.picks} homeTeam={m.homeTeam} awayTeam={m.awayTeam} />
+                  <PicksBar picks={m.picks} homeTeam={m.homeTeam} awayTeam={m.awayTeam} homeCode={m.homeCode} awayCode={m.awayCode} />
                 </div>
               )}
             </div>
