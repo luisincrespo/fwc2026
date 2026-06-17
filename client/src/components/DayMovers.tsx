@@ -42,13 +42,13 @@ export function DayMovers({ entries }: Props) {
   const droppers = minDelta < 0 ? entries.filter((e) => e.dailyDelta === minDelta) : [];
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+    <>
       {climbers.length > 0 && (
         <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''} today`} color="#4ade80" entries={climbers} />
       )}
       {droppers.length > 0 && (
         <Card label={`▼ Biggest drop${droppers.length > 1 ? 's' : ''} today`} color="#f87171" entries={droppers} />
       )}
-    </div>
+    </>
   );
 }

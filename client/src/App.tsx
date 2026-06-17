@@ -4,6 +4,7 @@ import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse } from
 import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
 import { DayMovers } from './components/DayMovers';
+import { TopScorers } from './components/TopScorers';
 import { Leaderboard } from './components/Leaderboard';
 import { DailyMovement } from './components/DailyMovement';
 import { UpcomingMatches } from './components/UpcomingMatches';
@@ -186,7 +187,12 @@ export function App() {
       {data && activeTab === 'today' && (
         <>
           <FinishedMatches matches={finished} />
-          {dailyData && <DayMovers entries={dailyData.leaderboard} />}
+          {dailyData && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+              <TopScorers entries={dailyData.leaderboard} />
+              <DayMovers entries={dailyData.leaderboard} />
+            </div>
+          )}
           <DailyMovement data={dailyData} loading={dailyLoading} />
         </>
       )}
