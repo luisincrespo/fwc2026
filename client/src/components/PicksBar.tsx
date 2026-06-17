@@ -24,7 +24,7 @@ export function PicksBar({ picks, homeTeam, awayTeam, homeCode, awayCode }: Prop
 
   return (
     <div style={{ fontSize: 12, color: '#64748b' }}>
-      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: '#334155', marginBottom: 7 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: '#64748b', marginBottom: 7 }}>
         Predictions distribution
       </div>
       <div style={{ display: 'flex', height: 4, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
@@ -39,7 +39,7 @@ export function PicksBar({ picks, homeTeam, awayTeam, homeCode, awayCode }: Prop
           <span style={{ color: awayClr }}>{awayTeam} {awayPct}%</span>
         </div>
         {topScores.length > 0 && (
-          <span style={{ color: '#475569' }}>
+          <span style={{ color: '#64748b' }}>
             Top predictions: {topScores.slice(0, 2).map(({ score, count }) => `${score} (${count})`).join(' · ')}
           </span>
         )}

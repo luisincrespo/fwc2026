@@ -15,11 +15,11 @@ export function PerformanceBar({ performance }: Props) {
       style={{ cursor: exact.length > 0 ? 'pointer' : 'default' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: '#334155' }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: '#64748b' }}>
           Prediction performance
         </span>
         {exact.length > 0 && (
-          <span style={{ fontSize: 11, color: '#475569' }}>{expanded ? '▲' : '▼'}</span>
+          <span style={{ fontSize: 11, color: '#64748b' }}>{expanded ? '▲' : '▼'}</span>
         )}
       </div>
 
@@ -32,7 +32,7 @@ export function PerformanceBar({ performance }: Props) {
       <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 12 }}>
         <span style={{ color: '#f59e0b' }}>⭐ Exact {exact.length}</span>
         <span style={{ color: '#22c55e' }}>✓ Correct {correct.length}</span>
-        <span style={{ color: '#475569' }}>✗ Miss {miss.length}</span>
+        <span style={{ color: '#64748b' }}>✗ Miss {miss.length}</span>
       </div>
 
       {expanded && (
