@@ -11,9 +11,8 @@ function formatSideGoals(goals: GoalEvent[]): string {
   const grouped = new Map<string, string[]>();
   for (const g of goals) {
     const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
-    const key = `${g.scorer}${suffix}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(g.minute);
+    if (!grouped.has(g.scorer)) grouped.set(g.scorer, []);
+    grouped.get(g.scorer)!.push(`${g.minute}${suffix}`);
   }
   return [...grouped.entries()].map(([name, minutes]) => `${name} ${minutes.map((m) => `⚽ ${m}`).join(' ')}`).join(' · ');
 }
