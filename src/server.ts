@@ -82,7 +82,12 @@ app.get('/api/live-leaderboard', async (req, res) => {
     }
 
     const espnLiveMatches: LiveMatchInternal[] = espnMatches
-      .filter((e) => e.isLive)
+      .filter((e) => {
+        if (!e.isLive) return false;
+        // If quiniela already processed the result, points are in official totals — skip.
+        const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
+        return !q?.is_completed;
+      })
       .map((e) => {
         const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
         const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
