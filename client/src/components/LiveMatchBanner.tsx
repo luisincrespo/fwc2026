@@ -89,6 +89,7 @@ export function LiveMatchBanner({ matches }: Props) {
               color: '#cbd5e1',
             }}
           >
+            {m.venue && <VenueLabel venue={m.venue} />}
             <div style={{ position: 'relative' }}>
               {m.minute && (
                 <span className="live-minute" style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#22c55e' }}>
@@ -108,7 +109,6 @@ export function LiveMatchBanner({ matches }: Props) {
               />
             </div>
             {m.goals.length > 0 && <GoalList goals={m.goals} />}
-            {m.venue && <VenueLabel venue={m.venue} />}
             {m.performance && m.performance.total > 0 && (
               <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
                 <PerformanceBar performance={m.performance} />

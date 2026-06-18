@@ -55,6 +55,7 @@ export function FinishedMatches({ matches }: Props) {
               color: '#cbd5e1',
             }}
           >
+            {m.venue && <VenueLabel venue={m.venue} />}
             <MatchRow
               homeTeam={m.homeTeam}
               awayTeam={m.awayTeam}
@@ -67,7 +68,6 @@ export function FinishedMatches({ matches }: Props) {
               }
             />
             {m.goals?.length > 0 && <GoalList goals={m.goals} />}
-            {m.venue && <VenueLabel venue={m.venue} />}
             {m.performance && m.performance.total > 0 && (
               <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
                 <PerformanceBar performance={m.performance} />

@@ -29,6 +29,7 @@ export function UpcomingMatches({ matches }: Props) {
                 color: '#cbd5e1',
               }}
             >
+              {m.venue && <VenueLabel venue={m.venue} />}
               <MatchRow
                 homeTeam={m.homeTeam}
                 awayTeam={m.awayTeam}
@@ -40,7 +41,6 @@ export function UpcomingMatches({ matches }: Props) {
                   </span>
                 }
               />
-              {m.venue && <VenueLabel venue={m.venue} />}
               {m.picks && m.picks.total > 0 && (
                 <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
                   <PicksBar picks={m.picks} homeTeam={m.homeTeam} awayTeam={m.awayTeam} homeCode={m.homeCode} awayCode={m.awayCode} />
