@@ -1,13 +1,27 @@
 import type { GoalEvent } from '../types';
 
-function formatSideGoals(goals: GoalEvent[]): string {
+function groupGoals(goals: GoalEvent[]): { name: string; minutes: string[] }[] {
   const grouped = new Map<string, string[]>();
   for (const g of goals) {
     const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
     if (!grouped.has(g.scorer)) grouped.set(g.scorer, []);
     grouped.get(g.scorer)!.push(`${g.minute}${suffix}`);
   }
-  return [...grouped.entries()].map(([name, minutes]) => `${name} ${minutes.map((m) => `⚽ ${m}`).join(' ')}`).join(' · ');
+  return [...grouped.entries()].map(([name, minutes]) => ({ name, minutes }));
+}
+
+function SideGoals({ goals, align }: { goals: GoalEvent[]; align: 'left' | 'right' }) {
+  const entries = groupGoals(goals);
+  return (
+    <span style={{ flex: 1, textAlign: align, display: 'block' }}>
+      {entries.map((e, i) => (
+        <span key={e.name} style={{ whiteSpace: 'nowrap' }}>
+          {i > 0 && ' · '}
+          {e.name} {e.minutes.map((m) => `⚽ ${m}`).join(' ')}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export function GoalList({ goals, color }: { goals: GoalEvent[]; color: string }) {
@@ -16,13 +30,9 @@ export function GoalList({ goals, color }: { goals: GoalEvent[]; color: string }
 
   return (
     <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color }}>
-      <span style={{ flex: 1, textAlign: 'right' }}>
-        {formatSideGoals(homeGoals)}
-      </span>
+      <SideGoals goals={homeGoals} align="right" />
       <span style={{ color: `${color}66`, flexShrink: 0 }}>|</span>
-      <span style={{ flex: 1 }}>
-        {formatSideGoals(awayGoals)}
-      </span>
+      <SideGoals goals={awayGoals} align="left" />
     </div>
   );
 }
