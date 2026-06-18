@@ -19,6 +19,7 @@ export interface EspnMatch {
   homeScore: number | null;
   awayScore: number | null;
   goals: EspnGoal[];
+  venue?: { name: string; city: string };
 }
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
@@ -62,6 +63,10 @@ function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
         };
       });
 
+    const venueRaw = comp['venue'] as Record<string, unknown> | undefined;
+    const venueAddr = venueRaw?.['address'] as Record<string, string> | undefined;
+    const venue = venueRaw ? { name: venueRaw['fullName'] as string, city: venueAddr?.['city'] ?? '' } : undefined;
+
     matches.push({
       kickoffUtc: event['date'] as string,
       espnHomeTeam: (home['team'] as Record<string, string>)['displayName'] ?? '',
@@ -73,6 +78,7 @@ function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
       homeScore: home['score'] != null ? Number(home['score']) : null,
       awayScore: away['score'] != null ? Number(away['score']) : null,
       goals,
+      venue,
     });
   }
   return matches;

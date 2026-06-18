@@ -26,6 +26,11 @@ export interface MatchPerformance {
   total: number;
 }
 
+export interface Venue {
+  name: string;
+  city: string;
+}
+
 export interface LiveMatch {
   homeTeam: string;
   awayTeam: string;
@@ -35,6 +40,7 @@ export interface LiveMatch {
   awayGoals: number;
   minute: string | null;
   goals: GoalEvent[];
+  venue?: Venue;
   performance?: MatchPerformance;
 }
 
@@ -77,6 +83,7 @@ export interface ScheduledMatch {
   homeGoals: number | null;
   awayGoals: number | null;
   goals: GoalEvent[];
+  venue?: Venue;
   picks?: MatchPicks;
   performance?: MatchPerformance;
 }

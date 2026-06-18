@@ -1,6 +1,7 @@
 import type { LiveMatch, GoalEvent } from '../types';
 import { MatchRow } from './MatchRow';
 import { PerformanceBar } from './PerformanceBar';
+import { VenueLabel } from './VenueLabel';
 
 interface Props {
   matches: LiveMatch[];
@@ -107,6 +108,7 @@ export function LiveMatchBanner({ matches }: Props) {
               />
             </div>
             {m.goals.length > 0 && <GoalList goals={m.goals} />}
+            {m.venue && <VenueLabel venue={m.venue} />}
             {m.performance && m.performance.total > 0 && (
               <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
                 <PerformanceBar performance={m.performance} />

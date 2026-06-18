@@ -25,6 +25,7 @@ interface LiveMatchInternal {
   utcDate: string;
   minute: string | null;
   goals: EspnGoal[];
+  venue?: { name: string; city: string };
 }
 
 async function getMockMatches(): Promise<LiveMatchInternal[]> {
@@ -102,6 +103,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
           utcDate: e.kickoffUtc,
           minute: e.minute,
           goals: flipped ? flipGoals(e.goals) : e.goals,
+          venue: e.venue,
         };
       });
 
@@ -214,6 +216,7 @@ app.get('/api/live-leaderboard', async (req, res) => {
           awayGoals: m.awayGoals,
           minute: m.minute,
           goals: m.goals,
+          venue: m.venue,
           performance: perf && perf.total > 0
             ? { exact: perf.exact, correct: perf.correct, miss: perf.miss, total: perf.total }
             : undefined,
@@ -509,6 +512,7 @@ app.get('/api/schedule', async (req, res) => {
         awayGoals,
         goals,
         picks,
+        venue: espn?.venue,
         _gameId: g.game_id,
         _stage: g.stage,
       };
