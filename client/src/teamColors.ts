@@ -99,7 +99,7 @@ const COLORS: Record<string, TC> = {
   'ir': { p: '#30A060', alt: '#CC0000' },  // green / red (flag)
   'sa': { p: '#00813A', alt: '#C09A00' },  // green / gold (kit)
   'au': { p: '#FFD700', alt: '#003DA5' },  // gold / blue (union jack in flag)
-  'qa': { p: '#8D1B3D', alt: '#C09A00' },  // maroon / gold (kit)
+  'qa': { p: '#8D1B3D', alt: '#C4274F' },  // maroon / lighter maroon (flag is maroon+white only)
   'uz': { p: '#1EB53A', alt: '#1EB6E7' },  // green / sky blue (flag stripes)
   'iq': { p: '#CE1126', alt: '#007A3D' },  // red / green (flag)
   'jo': { p: '#30A060', alt: '#CC0000' },  // green / red (flag)
