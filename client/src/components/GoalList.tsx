@@ -13,13 +13,15 @@ function groupGoals(goals: GoalEvent[]): { name: string; minutes: string[] }[] {
 function SideGoals({ goals, align }: { goals: GoalEvent[]; align: 'left' | 'right' }) {
   const entries = groupGoals(goals);
   return (
-    <span style={{ flex: 1, textAlign: align, display: 'block' }}>
-      {entries.map((e, i) => (
-        <span key={e.name} style={{ whiteSpace: 'nowrap' }}>
-          {i > 0 && ' · '}
-          {e.name} {e.minutes.map((m) => `⚽ ${m}`).join(' ')}
-        </span>
-      ))}
+    <span style={{ flex: 1, minWidth: 0, textAlign: align, display: 'block' }}>
+      {entries.flatMap((e, i) => {
+        const el = (
+          <span key={e.name} style={{ whiteSpace: 'nowrap' }}>
+            {e.name} {e.minutes.map((m) => `⚽ ${m}`).join(' ')}
+          </span>
+        );
+        return i === 0 ? [el] : [' · ', el];
+      })}
     </span>
   );
 }
