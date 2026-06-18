@@ -1,37 +1,11 @@
-import type { LiveMatch, GoalEvent } from '../types';
+import type { LiveMatch } from '../types';
 import { MatchRow } from './MatchRow';
 import { PerformanceBar } from './PerformanceBar';
 import { VenueLabel } from './VenueLabel';
+import { GoalList } from './GoalList';
 
 interface Props {
   matches: LiveMatch[];
-}
-
-function formatSideGoals(goals: GoalEvent[]): string {
-  const grouped = new Map<string, string[]>();
-  for (const g of goals) {
-    const suffix = g.ownGoal ? ' (og)' : g.penaltyKick ? ' (p)' : '';
-    if (!grouped.has(g.scorer)) grouped.set(g.scorer, []);
-    grouped.get(g.scorer)!.push(`${g.minute}${suffix}`);
-  }
-  return [...grouped.entries()].map(([name, minutes]) => `${name} ${minutes.map((m) => `⚽ ${m}`).join(' ')}`).join(' · ');
-}
-
-function GoalList({ goals }: { goals: GoalEvent[] }) {
-  const homeGoals = goals.filter((g) => g.team === 'home');
-  const awayGoals = goals.filter((g) => g.team === 'away');
-
-  return (
-    <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 12, color: '#86efac' }}>
-      <span style={{ flex: 1, textAlign: 'right' }}>
-        {formatSideGoals(homeGoals)}
-      </span>
-      <span style={{ color: '#4ade8066', flexShrink: 0 }}>|</span>
-      <span style={{ flex: 1 }}>
-        {formatSideGoals(awayGoals)}
-      </span>
-    </div>
-  );
 }
 
 export function LiveMatchBanner({ matches }: Props) {
@@ -107,7 +81,7 @@ export function LiveMatchBanner({ matches }: Props) {
                 }
               />
             </div>
-            {m.goals.length > 0 && <GoalList goals={m.goals} />}
+            {m.goals.length > 0 && <GoalList goals={m.goals} color="#86efac" />}
             {m.performance && m.performance.total > 0 && (
               <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
                 <PerformanceBar performance={m.performance} />
