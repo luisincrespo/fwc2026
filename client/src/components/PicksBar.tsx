@@ -34,9 +34,9 @@ export function PicksBar({ picks, homeTeam, awayTeam, homeCode, awayCode }: Prop
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
         <div style={{ display: 'flex', gap: 10 }}>
-          <span style={{ color: homeClr }}>{homeTeam} {homePct}%</span>
-          <span style={{ color: '#94a3b8' }}>Draw {drawPct}%</span>
-          <span style={{ color: awayClr }}>{awayTeam} {awayPct}%</span>
+          <span style={{ color: homeClr }}>{homeTeam} {home} ({homePct}%)</span>
+          <span style={{ color: '#94a3b8' }}>Draw {draw} ({drawPct}%)</span>
+          <span style={{ color: awayClr }}>{awayTeam} {away} ({awayPct}%)</span>
         </div>
         {topScores.length > 0 && (
           <span style={{ color: '#64748b' }}>
