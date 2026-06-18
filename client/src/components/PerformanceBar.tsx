@@ -30,9 +30,9 @@ export function PerformanceBar({ performance }: Props) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 12 }}>
-        <span style={{ color: '#f59e0b' }}>⭐ Exact {exact.length}</span>
-        <span style={{ color: '#22c55e' }}>✓ Correct {correct.length}</span>
-        <span style={{ color: '#64748b' }}>✗ Miss {miss.length}</span>
+        <span style={{ color: '#f59e0b' }}>⭐ Exact {exact.length} ({Math.round(exact.length / performance.total * 100)}%)</span>
+        <span style={{ color: '#22c55e' }}>✓ Correct {correct.length} ({Math.round(correct.length / performance.total * 100)}%)</span>
+        <span style={{ color: '#64748b' }}>✗ Miss {miss.length} ({Math.round(miss.length / performance.total * 100)}%)</span>
       </div>
 
       {expanded && (
