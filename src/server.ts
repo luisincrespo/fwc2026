@@ -684,6 +684,8 @@ app.get('/api/insights', async (req, res) => {
         ...nonCompleted.map((g) => ({ h: g.predicted_home!, a: g.predicted_away! })),
       ];
       const draws = allPreds.filter((x) => x.h === x.a).length;
+      const totalGoals = allPreds.reduce((s, x) => s + x.h + x.a, 0);
+      const avgGoals = allPreds.length > 0 ? Math.round((totalGoals / allPreds.length) * 10) / 10 : 0;
 
       return {
         id: p.id,
@@ -698,6 +700,7 @@ app.get('/api/insights', async (req, res) => {
         drawPredictions: draws,
         totalPredictions: allPreds.length,
         drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
+        avgGoals,
         ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
         pointsPerDay: gameDates.map((date) =>
           bd.filter((g) => g.scheduled_at.slice(0, 10) === date).reduce((s, g) => s + g.points, 0),
@@ -747,39 +750,6 @@ app.get('/api/insights', async (req, res) => {
       }).length,
     }));
 
-    // Majority predicted outcome for non-completed games (live + upcoming) from bracket data
-    const allCompletedIds = new Set(participants.flatMap((p) => p.breakdown.map((g) => g.game_id)));
-    const nonCompletedGameIds = new Set(
-      allBrackets.flatMap((b) => b.preds
-        .filter((g) => !allCompletedIds.has(g.game_id) && g.predicted_home != null)
-        .map((g) => g.game_id),
-      ),
-    );
-    const nonCompletedMajorityMap = new Map<number, 'H' | 'D' | 'A'>();
-    for (const gid of nonCompletedGameIds) {
-      const counts = { H: 0, D: 0, A: 0 };
-      for (const { preds } of allBrackets) {
-        const g = preds.find((x) => x.game_id === gid);
-        if (g?.predicted_home != null && g?.predicted_away != null) counts[outcomeOf(g.predicted_home, g.predicted_away)]++;
-      }
-      const top = (Object.entries(counts) as ['H' | 'D' | 'A', number][]).sort((a, b) => b[1] - a[1])[0][0];
-      nonCompletedMajorityMap.set(gid, top);
-    }
-
-    const consensusStats = participants.map((p) => {
-      const completedMatches = p.breakdown.filter((g) =>
-        outcomeOf(g.predicted_home, g.predicted_away) === majorityMap.get(g.game_id),
-      ).length;
-      const completedIds = new Set(p.breakdown.map((g) => g.game_id));
-      const bracket = bracketByParticipant.get(p.id) ?? [];
-      const nonCompleted = bracket.filter((g) => !completedIds.has(g.game_id) && g.predicted_home != null && g.predicted_away != null);
-      const nonCompletedMatches = nonCompleted.filter((g) =>
-        outcomeOf(g.predicted_home!, g.predicted_away!) === nonCompletedMajorityMap.get(g.game_id),
-      ).length;
-      const count = completedMatches + nonCompletedMatches;
-      const total = p.breakdown.length + nonCompleted.length;
-      return { id: p.id, name: p.name, count, pct: total > 0 ? Math.round(count / total * 100) : 0 };
-    });
 
     const last3Dates = new Set(gameDates.slice(-3));
     const onFireStats = participants.map((p) => ({
@@ -844,8 +814,8 @@ app.get('/api/insights', async (req, res) => {
       },
       {
         id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
-        description: 'Most draw predictions',
-        winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
+        description: 'Highest % of draw predictions',
+        winners: topWinners(result, (p) => p.drawPct, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
       },
       {
         id: 'contrarian', emoji: '🤠', name: 'Maverick',
@@ -853,9 +823,14 @@ app.get('/api/insights', async (req, res) => {
         winners: topWinners(contraryStats, (p) => p.count, (p) => `${p.count} picks`),
       },
       {
-        id: 'consensus', emoji: '🐑', name: 'Consensus',
-        description: 'Predictions align most with the group',
-        winners: topWinners(consensusStats, (p) => p.count, (p) => `${p.count} matches (${p.pct}%)`),
+        id: 'goalfest', emoji: '🎆', name: 'Goalfest',
+        description: 'Highest average goals predicted per match',
+        winners: topWinners(result, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`),
+      },
+      {
+        id: 'safe_keeper', emoji: '🧤', name: 'Safe Keeper',
+        description: 'Lowest average goals predicted per match',
+        winners: bottomWinners(result, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`, Infinity),
       },
       {
         id: 'rising_star', emoji: '📈', name: 'Rising Star',
