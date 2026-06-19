@@ -61,7 +61,7 @@ function ExpandedRow({ entry, colSpan, hasUpcoming }: { entry: LeaderboardEntry;
 
   return (
     <>
-      {entry.liveBreakdown.map((pred, j) => (
+      {(entry.liveBreakdown ?? []).map((pred, j) => (
         <PredictionRow key={j} pred={pred} colSpan={colSpan} />
       ))}
       {upcomingPreds === null
