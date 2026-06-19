@@ -698,17 +698,16 @@ app.get('/api/insights', async (req, res) => {
       pts: p.breakdown.filter((g) => last3Dates.has(g.scheduled_at.slice(0, 10))).reduce((s, g) => s + g.points, 0),
     }));
 
-    const perfectDayWinners = participants
-      .filter((p) => {
-        const byDate = new Map<string, typeof p.breakdown>();
-        for (const g of p.breakdown) {
-          const d = g.scheduled_at.slice(0, 10);
-          if (!byDate.has(d)) byDate.set(d, []);
-          byDate.get(d)!.push(g);
-        }
-        return [...byDate.values()].some((gs) => gs.length > 0 && gs.every((g) => g.categories_awarded.includes('D')));
-      })
-      .map(({ id, name }) => ({ id, name }));
+    const perfectDayStats = participants.map((p) => {
+      const byDate = new Map<string, typeof p.breakdown>();
+      for (const g of p.breakdown) {
+        const d = g.scheduled_at.slice(0, 10);
+        if (!byDate.has(d)) byDate.set(d, []);
+        byDate.get(d)!.push(g);
+      }
+      const count = [...byDate.values()].filter((gs) => gs.length > 0 && gs.every((g) => g.categories_awarded.includes('D'))).length;
+      return { id: p.id, name: p.name, count };
+    });
 
     const lookbackCount = Math.min(3, rankMaps.length - 1);
     const lookbackIdx = rankMaps.length - 1 - lookbackCount;
@@ -781,8 +780,8 @@ app.get('/api/insights', async (req, res) => {
       },
       {
         id: 'perfect_day', emoji: '💎', name: 'Perfect Day',
-        description: 'Exact score on every game in at least one day',
-        winners: perfectDayWinners,
+        description: 'Most days with an exact score on every game',
+        winners: topWinners(perfectDayStats, (p) => p.count, (p) => `${p.count}d`),
       },
     ];
 
