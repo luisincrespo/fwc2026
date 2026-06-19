@@ -4,6 +4,7 @@ import { fetchParticipantUpcoming } from '../api';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
 import { MatchBreakdownRow } from './MatchBreakdownRow';
 import { Matchup } from './Matchup';
+import { KickoffTime } from './KickoffTime';
 import { RankDelta } from './RankDelta';
 
 interface Props {
@@ -28,8 +29,6 @@ function PredictionRow({ pred, colSpan }: { pred: LivePrediction; colSpan: numbe
 }
 
 function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; match: ScheduledMatch | undefined; colSpan: number }) {
-  const d = new Date(pred.scheduled_at);
-  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
@@ -41,7 +40,7 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
             />
           </span>
           <span style={{ width: 80, flexShrink: 0 }}>
-            Kicks off: <strong style={{ color: '#e2e8f0' }}>{time}</strong>
+            <KickoffTime utc={pred.scheduled_at} />
           </span>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction: <strong style={{ color: '#e2e8f0' }}>{pred.predicted_home}–{pred.predicted_away}</strong>

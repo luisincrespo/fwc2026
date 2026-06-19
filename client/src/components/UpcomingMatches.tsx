@@ -1,5 +1,6 @@
 import type { ScheduledMatch } from '../types';
 import { Matchup } from './Matchup';
+import { KickoffTime } from './KickoffTime';
 import { PicksBar } from './PicksBar';
 import { VenueLabel } from './VenueLabel';
 
@@ -17,7 +18,6 @@ export function UpcomingMatches({ matches }: Props) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {matches.map((m, i) => {
-          const timeStr = new Date(m.kickoffUtc).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           return (
             <div
               key={i}
@@ -36,11 +36,7 @@ export function UpcomingMatches({ matches }: Props) {
                 awayTeam={m.awayTeam}
                 homeCode={m.homeCode}
                 awayCode={m.awayCode}
-                center={
-                  <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                    {timeStr}
-                  </span>
-                }
+                center={<KickoffTime utc={m.kickoffUtc} />}
               />
               {m.picks && m.picks.total > 0 && (
                 <div style={{ margin: '10px -16px -10px', padding: '10px 16px', borderTop: '1px solid #0f172a' }}>
