@@ -126,11 +126,7 @@ export function RankChart({ data }: { data: InsightsResponse }) {
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={-1} stroke="#1e293b" strokeDasharray="3 3" />
 
-          {participants.filter((p) => !activeIds.has(p.id)).map((p) => (
-            <Line key={p.id} dataKey={`p${p.id}`} stroke="#1e293b" strokeWidth={1} dot={false} activeDot={false} isAnimationActive={false} />
-          ))}
-
-          {[...top15, ...extraActive].map((p) => {
+          {activeAll.map((p) => {
             const color = colorMap.get(p.id)!;
             const isHighlighted = highlighted === p.id;
             const isDimmed = highlighted !== null && !isHighlighted;
