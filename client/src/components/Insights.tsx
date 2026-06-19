@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { InsightsResponse, ParticipantInsight } from '../types';
 import { RankChart } from './RankChart';
+import { Badges } from './Badges';
 
 type AccuracySort = 'exact' | 'accuracy';
 
@@ -95,6 +96,8 @@ export function Insights({ data, loading }: Props) {
 
   return (
     <div>
+      <Badges badges={data.badges} />
+
       <div style={{ marginBottom: 20 }}>
         <div style={SECTION_LABEL}>Rank trajectory</div>
         <div style={{ ...CARD, paddingBottom: 14 }}>

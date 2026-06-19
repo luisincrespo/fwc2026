@@ -643,7 +643,147 @@ app.get('/api/insights', async (req, res) => {
       };
     });
 
-    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates });
+    // Badge helpers
+    const outcomeOf = (h: number, a: number): 'H' | 'D' | 'A' => h > a ? 'H' : h < a ? 'A' : 'D';
+
+    type Winner = { id: number; name: string; detail?: string };
+    function topWinners<T extends { id: number; name: string }>(
+      arr: T[], val: (x: T) => number, det?: (x: T) => string, min = 1,
+    ): Winner[] {
+      if (!arr.length) return [];
+      const best = Math.max(...arr.map(val));
+      if (best < min) return [];
+      return arr.filter((x) => val(x) === best).map((x) => ({ id: x.id, name: x.name, ...(det ? { detail: det(x) } : {}) }));
+    }
+    function bottomWinners<T extends { id: number; name: string }>(
+      arr: T[], val: (x: T) => number, det?: (x: T) => string, max = -1,
+    ): Winner[] {
+      if (!arr.length) return [];
+      const best = Math.min(...arr.map(val));
+      if (best > max) return [];
+      return arr.filter((x) => val(x) === best).map((x) => ({ id: x.id, name: x.name, ...(det ? { detail: det(x) } : {}) }));
+    }
+
+    // Majority predicted outcome per game (for Contrarian / Consensus badges)
+    const allGameIds = new Set(participants.flatMap((p) => p.breakdown.map((g) => g.game_id)));
+    const majorityMap = new Map<number, 'H' | 'D' | 'A'>();
+    for (const gid of allGameIds) {
+      const counts = { H: 0, D: 0, A: 0 };
+      for (const p of participants) {
+        const g = p.breakdown.find((x) => x.game_id === gid);
+        if (g) counts[outcomeOf(g.predicted_home, g.predicted_away)]++;
+      }
+      const top = (Object.entries(counts) as ['H' | 'D' | 'A', number][]).sort((a, b) => b[1] - a[1])[0][0];
+      majorityMap.set(gid, top);
+    }
+
+    const contraryStats = participants.map((p) => ({
+      id: p.id, name: p.name,
+      count: p.breakdown.filter((g) => {
+        const myO = outcomeOf(g.predicted_home, g.predicted_away);
+        return myO !== majorityMap.get(g.game_id) && myO === outcomeOf(g.actual_home, g.actual_away);
+      }).length,
+    }));
+
+    const consensusStats = participants.map((p) => ({
+      id: p.id, name: p.name,
+      count: p.breakdown.filter((g) =>
+        outcomeOf(g.predicted_home, g.predicted_away) === majorityMap.get(g.game_id),
+      ).length,
+    }));
+
+    const last3Dates = new Set(gameDates.slice(-3));
+    const onFireStats = participants.map((p) => ({
+      id: p.id, name: p.name,
+      pts: p.breakdown.filter((g) => last3Dates.has(g.scheduled_at.slice(0, 10))).reduce((s, g) => s + g.points, 0),
+    }));
+
+    const perfectDayWinners = participants
+      .filter((p) => {
+        const byDate = new Map<string, typeof p.breakdown>();
+        for (const g of p.breakdown) {
+          const d = g.scheduled_at.slice(0, 10);
+          if (!byDate.has(d)) byDate.set(d, []);
+          byDate.get(d)!.push(g);
+        }
+        return [...byDate.values()].some((gs) => gs.length > 0 && gs.every((g) => g.categories_awarded.includes('D')));
+      })
+      .map(({ id, name }) => ({ id, name }));
+
+    const trajectoryStats = result.map((p) => ({
+      id: p.id, name: p.name,
+      change: p.ranks.length > 1 ? p.ranks[0] - p.ranks[p.ranks.length - 1] : 0,
+    }));
+
+    const daysAtTopStats = result.map((p) => ({
+      id: p.id, name: p.name,
+      days: rankMaps.filter((m) => m.get(p.id) === 1).length,
+    }));
+
+    const badges = [
+      {
+        id: 'leader', emoji: '👑', name: 'Leader',
+        description: 'Currently sitting at #1',
+        winners: result.filter((p) => p.currentRank === 1).map(({ id, name }) => ({ id, name })),
+      },
+      {
+        id: 'dominant', emoji: '⭐', name: 'Dominant',
+        description: 'Most game days spent at rank #1',
+        winners: topWinners(daysAtTopStats, (p) => p.days, (p) => `${p.days}d`),
+      },
+      {
+        id: 'sniper', emoji: '🎯', name: 'Sniper',
+        description: 'Most exact score predictions',
+        winners: topWinners(result, (p) => p.exact, (p) => `${p.exact} exact`),
+      },
+      {
+        id: 'analyst', emoji: '🧠', name: 'Analyst',
+        description: 'Highest outcome accuracy (min 5 games)',
+        winners: topWinners(result.filter((p) => p.gamesPlayed >= 5), (p) => p.accuracyPct, (p) => `${p.accuracyPct}%`),
+      },
+      {
+        id: 'on_fire', emoji: '🔥', name: 'On Fire',
+        description: `Most points in the last ${Math.min(3, gameDates.length)} game days`,
+        winners: topWinners(onFireStats, (p) => p.pts, (p) => `${p.pts} pts`),
+      },
+      {
+        id: 'eagle_eye', emoji: '🦅', name: 'Eagle Eye',
+        description: 'Correct outcome on every completed game',
+        winners: result.filter((p) => p.miss === 0 && p.gamesPlayed > 0).map(({ id, name }) => ({ id, name })),
+      },
+      {
+        id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
+        description: 'Most draw predictions',
+        winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws`),
+      },
+      {
+        id: 'contrarian', emoji: '🎲', name: 'Contrarian',
+        description: 'Most correct picks that went against the crowd',
+        winners: topWinners(contraryStats, (p) => p.count, (p) => `${p.count} picks`),
+      },
+      {
+        id: 'consensus', emoji: '🐑', name: 'Consensus',
+        description: 'Predictions align most with the group',
+        winners: topWinners(consensusStats, (p) => p.count, (p) => `${p.count} matches`),
+      },
+      {
+        id: 'rising_star', emoji: '📈', name: 'Rising Star',
+        description: 'Biggest rank climb since the tournament began',
+        winners: topWinners(trajectoryStats, (p) => p.change, (p) => `+${p.change} ranks`),
+      },
+      {
+        id: 'rough_patch', emoji: '📉', name: 'Rough Patch',
+        description: 'Biggest rank drop since the tournament began',
+        winners: bottomWinners(trajectoryStats, (p) => p.change, (p) => `${p.change} ranks`),
+      },
+      {
+        id: 'perfect_day', emoji: '💎', name: 'Perfect Day',
+        description: 'Exact score on every game in at least one day',
+        winners: perfectDayWinners,
+      },
+    ];
+
+    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates, badges });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build insights' });
