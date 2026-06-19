@@ -15,6 +15,8 @@ export interface EspnMatch {
   kickoffUtc: string;
   espnHomeTeam: string;
   espnAwayTeam: string;
+  espnHomeAbbr: string;
+  espnAwayAbbr: string;
   isLive: boolean;
   minute: string | null;
   homeScore: number | null;
@@ -68,10 +70,14 @@ function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
     const venueAddr = venueRaw?.['address'] as Record<string, string> | undefined;
     const venue = venueRaw ? { name: venueRaw['fullName'] as string, city: venueAddr?.['city'] ?? '' } : undefined;
 
+    const homeTeam = home['team'] as Record<string, string>;
+    const awayTeam = away['team'] as Record<string, string>;
     matches.push({
       kickoffUtc: event['date'] as string,
-      espnHomeTeam: (home['team'] as Record<string, string>)['displayName'] ?? '',
-      espnAwayTeam: (away['team'] as Record<string, string>)['displayName'] ?? '',
+      espnHomeTeam: homeTeam['displayName'] ?? '',
+      espnAwayTeam: awayTeam['displayName'] ?? '',
+      espnHomeAbbr: homeTeam['abbreviation'] ?? '',
+      espnAwayAbbr: awayTeam['abbreviation'] ?? '',
       isLive: state === 'in',
       minute: state === 'post' ? 'FT'
         : statusName === 'STATUS_HALFTIME' ? 'HT'

@@ -59,25 +59,27 @@ async function getMockMatches(): Promise<LiveMatchInternal[]> {
   }));
 }
 
-// Pairs of names that ESPN and quiniela use for the same country
-const TEAM_ALIASES: [string, string][] = [
-  ['united states', 'usa'],
-  ['korea republic', 'south korea'],
-];
+// ESPN uses 3-letter FIFA/IOC abbreviations; quiniela flags are ISO 3166-1 alpha-2.
+// Entries only needed where the first two letters of the FIFA code ≠ the ISO-2 code.
+const FIFA_TO_ISO2: Record<string, string> = {
+  ALG: 'dz', ANG: 'ao', CHI: 'cl', COD: 'cd', CON: 'cg', CRO: 'hr',
+  DEN: 'dk', GER: 'de', GNB: 'gw', IRN: 'ir', JAM: 'jm', KOR: 'kr',
+  MEX: 'mx', MOZ: 'mz', NED: 'nl', PAR: 'py', PHI: 'ph', POR: 'pt',
+  RSA: 'za', SEN: 'sn', SLO: 'si', SUI: 'ch', SVK: 'sk', SWE: 'se',
+  TUN: 'tn', URU: 'uy', ZAM: 'zm', ZIM: 'zw',
+};
 
-function teamNamesMatch(espn: string, qui: string): boolean {
-  const e = espn.toLowerCase();
-  const q = qui.toLowerCase();
-  if (e === q || e.includes(q) || q.includes(e)) return true;
-  if (q.split(' ').some((w) => w.length >= 3 && e.includes(w))) return true;
-  return TEAM_ALIASES.some(([a, b]) => (e.includes(a) && q.includes(b)) || (e.includes(b) && q.includes(a)));
+function espnAbbrToIso2(abbr: string): string {
+  const upper = abbr.toUpperCase();
+  return (FIFA_TO_ISO2[upper] ?? abbr.slice(0, 2)).toLowerCase();
 }
 
 // Returns true when ESPN has home/away swapped relative to quiniela.
-// Checks both sides: if ESPN's away matches quiniela's home, they're flipped.
-function isEspnFlipped(espnHome: string, espnAway: string, quinielaHome: string): boolean {
-  if (teamNamesMatch(espnHome, quinielaHome)) return false;
-  if (teamNamesMatch(espnAway, quinielaHome)) return true;
+// Compares ISO 3166-1 alpha-2 codes (quiniela home_flag) against ESPN abbreviations.
+function isEspnFlipped(espnHomeAbbr: string, espnAwayAbbr: string, quinielaHomeFlag: string): boolean {
+  const flag = quinielaHomeFlag.toLowerCase();
+  if (espnAbbrToIso2(espnHomeAbbr) === flag) return false;
+  if (espnAbbrToIso2(espnAwayAbbr) === flag) return true;
   return false;
 }
 
@@ -109,7 +111,7 @@ app.get('/api/leaderboard', async (req, res) => {
       .map((e) => {
         const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
         const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
-        const flipped = isEspnFlipped(e.espnHomeTeam, e.espnAwayTeam, quinielaHome);
+        const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
           homeTeam: quinielaHome,
           awayTeam: q?.away_team_name ?? '',
@@ -294,7 +296,7 @@ app.get('/api/daily-recap', async (req, res) => {
         const elapsedMin = (Date.now() - t.getTime()) / 60000;
         const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
         const finished = g.is_completed || elapsedMin >= 150 || espn?.minute === 'FT';
-        const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, espn.espnAwayTeam, g.home_team_name) : false;
+        const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
         const homeScore = g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null;
         const awayScore = g.actual_away_score ?? (flipped ? espn?.homeScore : espn?.awayScore) ?? null;
         return finished && homeScore != null && awayScore != null;
@@ -302,7 +304,7 @@ app.get('/api/daily-recap', async (req, res) => {
       .map((g) => {
         if (!isMock) return g;
         const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
-        const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, espn.espnAwayTeam, g.home_team_name) : false;
+        const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
         return {
           ...g,
           actual_home_score: g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null,
@@ -490,7 +492,7 @@ app.get('/api/schedule', async (req, res) => {
       const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
       if (espn?.minute === 'FT') status = 'FINISHED';
 
-      const flipped = espn ? isEspnFlipped(espn.espnHomeTeam, espn.espnAwayTeam, g.home_team_name) : false;
+      const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
 
       let goals: EspnGoal[] = [];
       let homeGoals: number | null = g.actual_home_score;
