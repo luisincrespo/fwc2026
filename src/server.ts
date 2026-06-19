@@ -781,7 +781,7 @@ app.get('/api/insights', async (req, res) => {
         winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
       },
       {
-        id: 'contrarian', emoji: '🎲', name: 'Maverick',
+        id: 'contrarian', emoji: '🤠', name: 'Maverick',
         description: 'Most correct picks that went against the crowd',
         winners: topWinners(contraryStats, (p) => p.count, (p) => `${p.count} picks`),
       },
