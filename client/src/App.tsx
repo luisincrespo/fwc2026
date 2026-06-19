@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights } from './api';
 import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse } from './types';
