@@ -759,7 +759,7 @@ app.get('/api/insights', async (req, res) => {
       {
         id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
         description: 'Most draw predictions',
-        winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws`),
+        winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
       },
       {
         id: 'contrarian', emoji: '🎲', name: 'Contrarian',
