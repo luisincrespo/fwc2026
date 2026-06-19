@@ -20,16 +20,18 @@ export function MatchBreakdownRow({
   points, scoreLabel = 'Result', colSpan = 4,
 }: Props) {
   const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : points > 0 ? '#94a3b8' : '#475569';
+  const center = (
+    <span style={{ color: '#64748b', fontWeight: 500 }}>
+      {scoreLabel}: <strong style={{ color: '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
+    </span>
+  );
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: '#94a3b8' }}>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <Matchup homeTeam={homeTeam} awayTeam={awayTeam} homeCode={homeCode} awayCode={awayCode} />
-          </span>
-          <span style={{ width: 80, flexShrink: 0 }}>
-            {scoreLabel}: <strong style={{ color: '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#94a3b8' }}>
+          <div style={{ flex: 1 }}>
+            <Matchup variant="card" homeTeam={homeTeam} awayTeam={awayTeam} homeCode={homeCode} awayCode={awayCode} center={center} />
+          </div>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction:{' '}
             <strong style={{ color: tierColor }}>{predictedHome}–{predictedAway}</strong>
