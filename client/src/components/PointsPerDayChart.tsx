@@ -3,7 +3,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import type { InsightsResponse, ParticipantInsight } from '../types';
+import type { InsightsResponse } from '../types';
 
 const PALETTE = [
   '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4',

@@ -1,5 +1,5 @@
 import type { LeaderboardEntry, LivePrediction } from '../types';
-import { BaseLeaderboard, cell, type ColumnDef } from './BaseLeaderboard';
+import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
 import { MatchBreakdownRow } from './MatchBreakdownRow';
 import { RankDelta } from './RankDelta';
 
