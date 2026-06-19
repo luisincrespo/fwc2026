@@ -20,7 +20,10 @@ function fmtDate(iso: string) {
 export function RankChart({ data }: { data: InsightsResponse }) {
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Extra non-top-15 players explicitly pinned by the user
+  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
+  // Top-15 players explicitly unpinned by the user
+  const [unpinnedTop15Ids, setUnpinnedTop15Ids] = useState<Set<number>>(new Set());
 
   const { gameDates, participants } = data;
 
@@ -38,25 +41,31 @@ export function RankChart({ data }: { data: InsightsResponse }) {
   const top15 = [...participants].sort((a, b) => a.currentRank - b.currentRank).slice(0, 15);
   const top15Ids = new Set(top15.map((p) => p.id));
 
-  // Non-top-15 players that are persistently selected OR match current search
+  const activeTop15 = top15.filter((p) => !unpinnedTop15Ids.has(p.id));
   const extraActive = participants.filter(
-    (p) => !top15Ids.has(p.id) && (selectedIds.has(p.id) || (query.length >= 1 && p.name.toLowerCase().includes(query))),
+    (p) => !top15Ids.has(p.id) && (pinnedIds.has(p.id) || (query.length >= 1 && p.name.toLowerCase().includes(query))),
   );
+  const activeAll = [...activeTop15, ...extraActive];
+  const activeIds = new Set(activeAll.map((p) => p.id));
 
   const colorMap = new Map<number, string>();
   top15.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
   extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[15 + (i % 5)]));
 
-  const activeIds = new Set([...top15Ids, ...extraActive.map((p) => p.id)]);
-
   const toggleSelect = (id: number) => {
-    if (top15Ids.has(id)) return;
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    if (top15Ids.has(id)) {
+      setUnpinnedTop15Ids((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      setPinnedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    }
   };
 
   const chartData = gameDates.map((date, i) => {
@@ -169,7 +178,6 @@ export function RankChart({ data }: { data: InsightsResponse }) {
           {filteredList.map((p) => {
             const color = colorMap.get(p.id);
             const isActive = activeIds.has(p.id);
-            const isTop15 = top15Ids.has(p.id);
             return (
               <button
                 key={p.id}
@@ -178,12 +186,12 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                 onMouseLeave={() => setHighlighted(null)}
                 style={{
                   background: isActive ? '#1e293b' : 'none',
-                  border: `1px solid ${isActive ? (color ?? '#334155') : '#1e293b'}`,
+                  border: `1px solid ${isActive ? (color ?? '#475569') : '#1e293b'}`,
                   borderRadius: 20,
-                  color: color ?? '#334155',
+                  color: isActive ? (color ?? '#94a3b8') : '#64748b',
                   fontSize: 11,
                   padding: '2px 8px',
-                  cursor: isTop15 ? 'default' : 'pointer',
+                  cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   opacity: highlighted !== null && highlighted !== p.id ? 0.4 : 1,
                 }}
