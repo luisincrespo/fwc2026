@@ -32,16 +32,15 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
-        <div style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: '#94a3b8' }}>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#94a3b8' }}>
+          <div style={{ flex: 1 }}>
             <Matchup
+              variant="card"
               homeTeam={pred.home_team} awayTeam={pred.away_team}
               homeCode={match?.homeCode ?? ''} awayCode={match?.awayCode ?? ''}
+              center={<KickoffTime utc={pred.scheduled_at} />}
             />
-          </span>
-          <span style={{ width: 80, flexShrink: 0 }}>
-            <KickoffTime utc={pred.scheduled_at} />
-          </span>
+          </div>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction: <strong style={{ color: '#e2e8f0' }}>{pred.predicted_home}–{pred.predicted_away}</strong>
           </span>
