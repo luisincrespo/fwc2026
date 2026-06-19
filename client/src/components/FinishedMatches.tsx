@@ -1,5 +1,5 @@
 import type { ScheduledMatch } from '../types';
-import { MatchRow } from './MatchRow';
+import { Matchup } from './Matchup';
 import { PerformanceBar } from './PerformanceBar';
 import { VenueLabel } from './VenueLabel';
 import { GoalList } from './GoalList';
@@ -29,7 +29,8 @@ export function FinishedMatches({ matches }: Props) {
             }}
           >
             {m.venue && <VenueLabel venue={m.venue} />}
-            <MatchRow
+            <Matchup
+              variant="card"
               homeTeam={m.homeTeam}
               awayTeam={m.awayTeam}
               homeCode={m.homeCode}

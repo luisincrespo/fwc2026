@@ -1,5 +1,5 @@
 import type { ScheduledMatch } from '../types';
-import { MatchRow } from './MatchRow';
+import { Matchup } from './Matchup';
 import { PicksBar } from './PicksBar';
 import { VenueLabel } from './VenueLabel';
 
@@ -30,7 +30,8 @@ export function UpcomingMatches({ matches }: Props) {
               }}
             >
               {m.venue && <VenueLabel venue={m.venue} />}
-              <MatchRow
+              <Matchup
+                variant="card"
                 homeTeam={m.homeTeam}
                 awayTeam={m.awayTeam}
                 homeCode={m.homeCode}

@@ -1,5 +1,5 @@
 import type { LiveMatch } from '../types';
-import { MatchRow } from './MatchRow';
+import { Matchup } from './Matchup';
 import { PerformanceBar } from './PerformanceBar';
 import { VenueLabel } from './VenueLabel';
 import { GoalList } from './GoalList';
@@ -69,7 +69,8 @@ export function LiveMatchBanner({ matches }: Props) {
                   {m.minute}
                 </span>
               )}
-              <MatchRow
+              <Matchup
+                variant="card"
                 homeTeam={m.homeTeam}
                 awayTeam={m.awayTeam}
                 homeCode={m.homeCode}
