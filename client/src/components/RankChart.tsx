@@ -194,15 +194,9 @@ export function RankChart({ data }: { data: InsightsResponse }) {
               >
                 <button
                   onClick={() => toggleId(p.id)}
-                  style={{ background: 'none', border: 'none', color: 'inherit', fontSize: 'inherit', padding: '2px 6px 2px 8px', cursor: 'pointer' }}
+                  style={{ background: 'none', border: 'none', color: 'inherit', fontSize: 'inherit', padding: '3px 10px', cursor: 'pointer' }}
                 >
                   #{p.currentRank} {p.name}
-                </button>
-                <button
-                  onClick={() => toggleId(p.id)}
-                  style={{ background: 'none', border: 'none', borderLeft: isActive ? `1px solid ${color ?? '#475569'}33` : '1px solid transparent', color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: isActive ? 'pointer' : 'default', opacity: 0.7, visibility: isActive ? 'visible' : 'hidden' }}
-                >
-                  ×
                 </button>
               </span>
             );
