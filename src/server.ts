@@ -688,11 +688,29 @@ app.get('/api/insights', async (req, res) => {
       }).length,
     }));
 
+    // Majority predicted outcome for upcoming games too (for Consensus badge denominator)
+    const allUpcomingGameIds = new Set([...upcomingMap.values()].flatMap((gs) => gs.map((g) => g.game_id)));
+    const upcomingMajorityMap = new Map<number, 'H' | 'D' | 'A'>();
+    for (const gid of allUpcomingGameIds) {
+      const counts = { H: 0, D: 0, A: 0 };
+      for (const games of upcomingMap.values()) {
+        const g = games.find((x) => x.game_id === gid);
+        if (g) counts[outcomeOf(g.predicted_home, g.predicted_away)]++;
+      }
+      const top = (Object.entries(counts) as ['H' | 'D' | 'A', number][]).sort((a, b) => b[1] - a[1])[0][0];
+      upcomingMajorityMap.set(gid, top);
+    }
+
     const consensusStats = participants.map((p) => {
-      const count = p.breakdown.filter((g) =>
+      const completedMatches = p.breakdown.filter((g) =>
         outcomeOf(g.predicted_home, g.predicted_away) === majorityMap.get(g.game_id),
       ).length;
-      const total = p.breakdown.length;
+      const upcoming = upcomingMap.get(p.id) ?? [];
+      const upcomingMatches = upcoming.filter((g) =>
+        outcomeOf(g.predicted_home, g.predicted_away) === upcomingMajorityMap.get(g.game_id),
+      ).length;
+      const count = completedMatches + upcomingMatches;
+      const total = p.breakdown.length + upcoming.length;
       return { id: p.id, name: p.name, count, pct: total > 0 ? Math.round(count / total * 100) : 0 };
     });
 
