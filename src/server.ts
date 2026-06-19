@@ -624,11 +624,12 @@ app.get('/api/insights', async (req, res) => {
 
     const { participants } = await getLeaderboardWithBreakdown();
 
-    // Fetch upcoming predictions for every participant in parallel
-    const upcomingAll = await Promise.all(
-      participants.map((p) => getUpcoming(p.id).then((games) => ({ id: p.id, games }))),
+    // Fetch full brackets for all participants — captures completed, live, and upcoming predictions.
+    // getUpcoming() misses games that have kicked off but aren't scored by quiniela yet.
+    const allBrackets = await Promise.all(
+      participants.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds }))),
     );
-    const upcomingMap = new Map(upcomingAll.map((u) => [u.id, u.games]));
+    const bracketByParticipant = new Map(allBrackets.map((b) => [b.id, b.preds]));
 
     // Current ranking
     const currentSorted = [...participants].sort((a, b) => b.total_points - a.total_points);
@@ -675,10 +676,12 @@ app.get('/api/insights', async (req, res) => {
       const correct = bd.filter((g) => !g.categories_awarded.includes('D') && g.categories_awarded.includes('A')).length;
       const gamesPlayed = bd.length;
 
-      const upcoming = upcomingMap.get(p.id) ?? [];
+      const completedIds = new Set(bd.map((g) => g.game_id));
+      const bracket = bracketByParticipant.get(p.id) ?? [];
+      const nonCompleted = bracket.filter((g) => !completedIds.has(g.game_id) && g.predicted_home != null && g.predicted_away != null);
       const allPreds = [
         ...bd.map((g) => ({ h: g.predicted_home, a: g.predicted_away })),
-        ...upcoming.map((g) => ({ h: g.predicted_home, a: g.predicted_away })),
+        ...nonCompleted.map((g) => ({ h: g.predicted_home!, a: g.predicted_away! })),
       ];
       const draws = allPreds.filter((x) => x.h === x.a).length;
 
@@ -744,29 +747,37 @@ app.get('/api/insights', async (req, res) => {
       }).length,
     }));
 
-    // Majority predicted outcome for upcoming games too (for Consensus badge denominator)
-    const allUpcomingGameIds = new Set([...upcomingMap.values()].flatMap((gs) => gs.map((g) => g.game_id)));
-    const upcomingMajorityMap = new Map<number, 'H' | 'D' | 'A'>();
-    for (const gid of allUpcomingGameIds) {
+    // Majority predicted outcome for non-completed games (live + upcoming) from bracket data
+    const allCompletedIds = new Set(participants.flatMap((p) => p.breakdown.map((g) => g.game_id)));
+    const nonCompletedGameIds = new Set(
+      allBrackets.flatMap((b) => b.preds
+        .filter((g) => !allCompletedIds.has(g.game_id) && g.predicted_home != null)
+        .map((g) => g.game_id),
+      ),
+    );
+    const nonCompletedMajorityMap = new Map<number, 'H' | 'D' | 'A'>();
+    for (const gid of nonCompletedGameIds) {
       const counts = { H: 0, D: 0, A: 0 };
-      for (const games of upcomingMap.values()) {
-        const g = games.find((x) => x.game_id === gid);
-        if (g) counts[outcomeOf(g.predicted_home, g.predicted_away)]++;
+      for (const { preds } of allBrackets) {
+        const g = preds.find((x) => x.game_id === gid);
+        if (g?.predicted_home != null && g?.predicted_away != null) counts[outcomeOf(g.predicted_home, g.predicted_away)]++;
       }
       const top = (Object.entries(counts) as ['H' | 'D' | 'A', number][]).sort((a, b) => b[1] - a[1])[0][0];
-      upcomingMajorityMap.set(gid, top);
+      nonCompletedMajorityMap.set(gid, top);
     }
 
     const consensusStats = participants.map((p) => {
       const completedMatches = p.breakdown.filter((g) =>
         outcomeOf(g.predicted_home, g.predicted_away) === majorityMap.get(g.game_id),
       ).length;
-      const upcoming = upcomingMap.get(p.id) ?? [];
-      const upcomingMatches = upcoming.filter((g) =>
-        outcomeOf(g.predicted_home, g.predicted_away) === upcomingMajorityMap.get(g.game_id),
+      const completedIds = new Set(p.breakdown.map((g) => g.game_id));
+      const bracket = bracketByParticipant.get(p.id) ?? [];
+      const nonCompleted = bracket.filter((g) => !completedIds.has(g.game_id) && g.predicted_home != null && g.predicted_away != null);
+      const nonCompletedMatches = nonCompleted.filter((g) =>
+        outcomeOf(g.predicted_home!, g.predicted_away!) === nonCompletedMajorityMap.get(g.game_id),
       ).length;
-      const count = completedMatches + upcomingMatches;
-      const total = p.breakdown.length + upcoming.length;
+      const count = completedMatches + nonCompletedMatches;
+      const total = p.breakdown.length + nonCompleted.length;
       return { id: p.id, name: p.name, count, pct: total > 0 ? Math.round(count / total * 100) : 0 };
     });
 
