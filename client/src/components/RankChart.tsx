@@ -248,25 +248,23 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                 >
                   #{p.currentRank} {p.name}
                 </button>
-                {isActive && (
-                  <button
-                    onClick={() => {
-                      if (activeIds.size === 1) {
-                        restorePreSolo();
+                <button
+                  onClick={() => {
+                    if (activeIds.size === 1) {
+                      restorePreSolo();
+                    } else {
+                      setPreSoloState(null);
+                      if (top10Ids.has(p.id)) {
+                        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
                       } else {
-                        setPreSoloState(null);
-                        if (top10Ids.has(p.id)) {
-                          setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
-                        } else {
-                          setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
-                        }
+                        setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
                       }
-                    }}
-                    style={{ background: 'none', border: 'none', borderLeft: `1px solid ${color ?? '#475569'}33`, color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: 'pointer', opacity: 0.7 }}
-                  >
-                    ×
-                  </button>
-                )}
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', borderLeft: isActive ? `1px solid ${color ?? '#475569'}33` : '1px solid transparent', color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: isActive ? 'pointer' : 'default', opacity: 0.7, visibility: isActive ? 'visible' : 'hidden' }}
+                >
+                  ×
+                </button>
               </span>
             );
           })}
