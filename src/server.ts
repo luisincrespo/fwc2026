@@ -710,16 +710,12 @@ app.get('/api/insights', async (req, res) => {
       })
       .map(({ id, name }) => ({ id, name }));
 
+    const lookbackCount = Math.min(3, rankMaps.length - 1);
+    const lookbackIdx = rankMaps.length - 1 - lookbackCount;
     const trajectoryStats = result.map((p) => {
       const currentRank = p.ranks[p.ranks.length - 1] ?? 0;
-      const bestRank = Math.min(...p.ranks);   // lowest rank number = best position
-      const worstRank = Math.max(...p.ranks);  // highest rank number = worst position
-      return {
-        id: p.id, name: p.name,
-        rise: worstRank - currentRank,   // positive = improved from worst
-        drop: currentRank - bestRank,    // positive = fell from peak
-        worstRank, bestRank,
-      };
+      const pastRank = p.ranks[lookbackIdx] ?? currentRank;
+      return { id: p.id, name: p.name, rise: pastRank - currentRank, drop: currentRank - pastRank, pastRank, currentRank };
     });
 
     const daysAtTopStats = result.map((p) => ({
@@ -770,13 +766,13 @@ app.get('/api/insights', async (req, res) => {
       },
       {
         id: 'rising_star', emoji: '📈', name: 'Rising Star',
-        description: 'Biggest climb from their lowest-ever rank to now',
-        winners: topWinners(trajectoryStats, (p) => p.rise, (p) => `#${p.worstRank} → now`),
+        description: `Biggest rank climb in the last ${lookbackCount} game days`,
+        winners: topWinners(trajectoryStats, (p) => p.rise, (p) => `#${p.pastRank} → #${p.currentRank}`),
       },
       {
         id: 'rough_patch', emoji: '📉', name: 'Rough Patch',
-        description: 'Biggest drop from their best-ever rank to now',
-        winners: topWinners(trajectoryStats, (p) => p.drop, (p) => `#${p.bestRank} → now`),
+        description: `Biggest rank drop in the last ${lookbackCount} game days`,
+        winners: topWinners(trajectoryStats, (p) => p.drop, (p) => `#${p.pastRank} → #${p.currentRank}`),
       },
       {
         id: 'perfect_day', emoji: '💎', name: 'Perfect Day',
