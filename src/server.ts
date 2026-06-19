@@ -562,6 +562,43 @@ app.get('/api/schedule', async (req, res) => {
   }
 });
 
+app.get('/api/upcoming/:id', async (req, res) => {
+  try {
+    const id = Number(req.params['id']);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+
+    const [upcoming, bracket, games] = await Promise.all([
+      getUpcoming(id),
+      getBracket(id),
+      getGames(),
+    ]);
+
+    const bracketMap = new Map(bracket.map((p) => [p.game_id, p]));
+    const gamesMap = new Map(games.map((g) => [g.game_id, g]));
+
+    const predictions = upcoming
+      .map((u) => {
+        const b = bracketMap.get(u.game_id);
+        const g = gamesMap.get(u.game_id);
+        if (!b || !g) return null;
+        return {
+          game_id: u.game_id,
+          home_team: b.home_team,
+          away_team: b.away_team,
+          predicted_home: u.predicted_home,
+          predicted_away: u.predicted_away,
+          scheduled_at: g.scheduled_at,
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ predictions });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch upcoming predictions' });
+  }
+});
+
 app.get('/api/insights', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();

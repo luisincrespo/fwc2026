@@ -1,4 +1,4 @@
-import type { LiveLeaderboardResponse, ScheduleResponse, DailyRecapResponse, InsightsResponse } from './types';
+import type { LiveLeaderboardResponse, ScheduleResponse, DailyRecapResponse, InsightsResponse, UpcomingPrediction } from './types';
 
 function todayRange() {
   const now = new Date();
@@ -37,6 +37,13 @@ export async function fetchDailyRecap(bust = false): Promise<DailyRecapResponse>
   const res = await fetch(`/api/daily-recap?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
+}
+
+export async function fetchParticipantUpcoming(participantId: number): Promise<UpcomingPrediction[]> {
+  const res = await fetch(`/api/upcoming/${participantId}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = await res.json() as { predictions: UpcomingPrediction[] };
+  return data.predictions;
 }
 
 export async function fetchInsights(bust = false): Promise<InsightsResponse> {

@@ -140,6 +140,15 @@ export interface ParticipantInsight {
   pointsPerDay: number[]; // points earned on each game date (parallel to InsightsResponse.gameDates)
 }
 
+export interface UpcomingPrediction {
+  game_id: number;
+  home_team: string;
+  away_team: string;
+  predicted_home: number;
+  predicted_away: number;
+  scheduled_at: string;
+}
+
 export interface FunFact {
   id: string;
   emoji: string;

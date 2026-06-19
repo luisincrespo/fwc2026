@@ -190,6 +190,7 @@ export function App() {
             entries={data.leaderboard}
             hasLive={data.liveMatches.length > 0}
             flashMap={flashMap}
+            upcoming={upcoming}
           />
         </>
       )}
