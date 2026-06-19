@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 
 const flashStyle = document.createElement('style');
@@ -105,9 +105,8 @@ export function BaseLeaderboard<T extends { id: number; rank: number; name: stri
               const rowBg = i % 2 === 0 ? '#131c2e' : '#0f172a';
               const flash = flashMap?.get(entry.id);
               return (
-                <>
+                <Fragment key={entry.id}>
                   <tr
-                    key={entry.id}
                     className={flash ? `flash-${flash}` : undefined}
                     style={{ background: isExpanded ? '#1a2740' : rowBg, cursor: canExpand ? 'pointer' : 'default' }}
                     onClick={() => canExpand && setExpandedId((prev) => prev === entry.id ? null : entry.id)}
@@ -122,7 +121,7 @@ export function BaseLeaderboard<T extends { id: number; rank: number; name: stri
                     ))}
                   </tr>
                   {isExpanded && renderExpanded?.(entry)}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
