@@ -32,7 +32,7 @@ export function Matchup(props: Props) {
           <span>{homeTeam}</span>
           <Flag code={homeCode} size={size} />
         </div>
-        <div style={{ width: 80, flexShrink: 0, textAlign: 'center' }}>
+        <div style={{ flex: '0 0 auto', textAlign: 'center', padding: '0 8px' }}>
           {props.center}
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
