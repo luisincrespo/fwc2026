@@ -19,7 +19,7 @@ export function MatchBreakdownRow({
   homeGoals, awayGoals, predictedHome, predictedAway,
   points, scoreLabel = 'Result', colSpan = 4,
 }: Props) {
-  const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : '#475569';
+  const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : points > 0 ? '#94a3b8' : '#475569';
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
