@@ -688,12 +688,13 @@ app.get('/api/insights', async (req, res) => {
       }).length,
     }));
 
-    const consensusStats = participants.map((p) => ({
-      id: p.id, name: p.name,
-      count: p.breakdown.filter((g) =>
+    const consensusStats = participants.map((p) => {
+      const count = p.breakdown.filter((g) =>
         outcomeOf(g.predicted_home, g.predicted_away) === majorityMap.get(g.game_id),
-      ).length,
-    }));
+      ).length;
+      const total = p.breakdown.length;
+      return { id: p.id, name: p.name, count, pct: total > 0 ? Math.round(count / total * 100) : 0 };
+    });
 
     const last3Dates = new Set(gameDates.slice(-3));
     const onFireStats = participants.map((p) => ({
@@ -769,7 +770,7 @@ app.get('/api/insights', async (req, res) => {
       {
         id: 'consensus', emoji: '🐑', name: 'Consensus',
         description: 'Predictions align most with the group',
-        winners: topWinners(consensusStats, (p) => p.count, (p) => `${p.count} matches`),
+        winners: topWinners(consensusStats, (p) => p.count, (p) => `${p.count} matches (${p.pct}%)`),
       },
       {
         id: 'rising_star', emoji: '📈', name: 'Rising Star',
