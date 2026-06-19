@@ -52,19 +52,30 @@ export function RankChart({ data }: { data: InsightsResponse }) {
   top15.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
   extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[15 + (i % 5)]));
 
-  const toggleSelect = (id: number) => {
-    if (top15Ids.has(id)) {
-      setUnpinnedTop15Ids((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      });
+  const reset = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); };
+
+  const handleChipClick = (id: number) => {
+    const isActive = activeIds.has(id);
+
+    if (isActive && activeIds.size === 1) {
+      // Only active player clicked → reset to defaults
+      reset();
+    } else if (isActive) {
+      // Active player with others → solo this one
+      if (top15Ids.has(id)) {
+        setUnpinnedTop15Ids(new Set(top15.filter((p) => p.id !== id).map((p) => p.id)));
+        setPinnedIds(new Set());
+      } else {
+        setUnpinnedTop15Ids(new Set(top15.map((p) => p.id)));
+        setPinnedIds(new Set([id]));
+      }
     } else {
-      setPinnedIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(id)) next.delete(id); else next.add(id);
-        return next;
-      });
+      // Inactive → activate
+      if (top15Ids.has(id)) {
+        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      } else {
+        setPinnedIds((prev) => { const next = new Set(prev); next.add(id); return next; });
+      }
     }
   };
 
@@ -148,26 +159,41 @@ export function RankChart({ data }: { data: InsightsResponse }) {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Search */}
+      {/* Search + Reset */}
       <div style={{ marginTop: 12, paddingLeft: 8 }}>
-        <input
-          type="text"
-          placeholder="Search players…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            background: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: 6,
-            color: '#e2e8f0',
-            fontSize: 12,
-            padding: '6px 10px',
-            outline: 'none',
-            marginBottom: 8,
-          }}
-        />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+          <input
+            type="text"
+            placeholder="Search players…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              flex: 1,
+              background: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: 6,
+              color: '#e2e8f0',
+              fontSize: 12,
+              padding: '6px 10px',
+              outline: 'none',
+            }}
+          />
+          <button
+            onClick={reset}
+            style={{
+              background: 'none',
+              border: '1px solid #334155',
+              borderRadius: 6,
+              color: '#64748b',
+              fontSize: 12,
+              padding: '6px 10px',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Reset
+          </button>
+        </div>
 
         {/* Scrollable player chip list */}
         <div style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start' }}>
@@ -177,7 +203,7 @@ export function RankChart({ data }: { data: InsightsResponse }) {
             return (
               <button
                 key={p.id}
-                onClick={() => toggleSelect(p.id)}
+                onClick={() => handleChipClick(p.id)}
                 onMouseEnter={() => setHighlighted(p.id)}
                 onMouseLeave={() => setHighlighted(null)}
                 style={{
