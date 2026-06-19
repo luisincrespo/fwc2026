@@ -3,6 +3,7 @@ import type { InsightsResponse, ParticipantInsight } from '../types';
 import { RankChart } from './RankChart';
 import { Badges } from './Badges';
 import { FunFacts } from './FunFacts';
+import { PointsPerDayChart } from './PointsPerDayChart';
 
 type AccuracySort = 'exact' | 'accuracy';
 
@@ -99,6 +100,13 @@ export function Insights({ data, loading }: Props) {
     <div>
       <FunFacts facts={data.funFacts} />
       <Badges badges={data.badges} />
+
+      <div style={{ marginBottom: 20 }}>
+        <div style={SECTION_LABEL}>Points per game day</div>
+        <div style={{ ...CARD, paddingBottom: 14 }}>
+          <PointsPerDayChart data={data} />
+        </div>
+      </div>
 
       <div style={{ marginBottom: 20 }}>
         <div style={SECTION_LABEL}>Rank trajectory</div>

@@ -640,6 +640,9 @@ app.get('/api/insights', async (req, res) => {
         totalPredictions: allPreds.length,
         drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
         ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
+        pointsPerDay: gameDates.map((date) =>
+          bd.filter((g) => g.scheduled_at.slice(0, 10) === date).reduce((s, g) => s + g.points, 0),
+        ),
       };
     });
 

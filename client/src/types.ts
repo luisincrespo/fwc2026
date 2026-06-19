@@ -136,7 +136,8 @@ export interface ParticipantInsight {
   drawPredictions: number;
   totalPredictions: number;
   drawPct: number;
-  ranks: number[];  // rank at end of each game date (parallel to InsightsResponse.gameDates)
+  ranks: number[];       // rank at end of each game date (parallel to InsightsResponse.gameDates)
+  pointsPerDay: number[]; // points earned on each game date (parallel to InsightsResponse.gameDates)
 }
 
 export interface FunFact {
