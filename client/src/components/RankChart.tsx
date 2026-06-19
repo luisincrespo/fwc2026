@@ -20,10 +20,9 @@ function fmtDate(iso: string) {
 export function RankChart({ data }: { data: InsightsResponse }) {
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  // Extra non-top-15 players explicitly pinned by the user
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
-  // Top-15 players explicitly unpinned by the user
   const [unpinnedTop15Ids, setUnpinnedTop15Ids] = useState<Set<number>>(new Set());
+  const [preSoloState, setPreSoloState] = useState<{ pinned: Set<number>; unpinned: Set<number> } | null>(null);
 
   const { gameDates, participants } = data;
 
@@ -50,26 +49,38 @@ export function RankChart({ data }: { data: InsightsResponse }) {
   top10.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
   extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[10 + (i % 10)]));
 
-  const resetToTop10 = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); };
-  const clearAll = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set(top10.map((p) => p.id))); };
+  const resetToTop10 = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); setPreSoloState(null); };
+  const clearAll = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set(top10.map((p) => p.id))); setPreSoloState(null); };
+
+  const restorePreSolo = () => {
+    if (preSoloState) {
+      setPinnedIds(preSoloState.pinned);
+      setUnpinnedTop15Ids(preSoloState.unpinned);
+      setPreSoloState(null);
+    } else {
+      resetToTop10();
+    }
+  };
+
+  const solo = (id: number) => {
+    setPreSoloState({ pinned: new Set(pinnedIds), unpinned: new Set(unpinnedTop15Ids) });
+    if (top10Ids.has(id)) {
+      setUnpinnedTop15Ids(new Set(top10.filter((p) => p.id !== id).map((p) => p.id)));
+      setPinnedIds(new Set());
+    } else {
+      setUnpinnedTop15Ids(new Set(top10.map((p) => p.id)));
+      setPinnedIds(new Set([id]));
+    }
+  };
 
   const handleChipClick = (id: number) => {
     const isActive = activeIds.has(id);
-
     if (isActive && activeIds.size === 1) {
-      // Only active player clicked → reset to defaults
-      resetToTop10();
+      restorePreSolo();
     } else if (isActive) {
-      // Active player with others → solo this one
-      if (top10Ids.has(id)) {
-        setUnpinnedTop15Ids(new Set(top10.filter((p) => p.id !== id).map((p) => p.id)));
-        setPinnedIds(new Set());
-      } else {
-        setUnpinnedTop15Ids(new Set(top10.map((p) => p.id)));
-        setPinnedIds(new Set([id]));
-      }
+      solo(id);
     } else {
-      // Inactive → activate
+      setPreSoloState(null);
       if (top10Ids.has(id)) {
         setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.delete(id); return next; });
       } else {
@@ -224,11 +235,14 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                   <button
                     onClick={() => {
                       if (activeIds.size === 1) {
-                        resetToTop10();
-                      } else if (top10Ids.has(p.id)) {
-                        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
+                        restorePreSolo();
                       } else {
-                        setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
+                        setPreSoloState(null);
+                        if (top10Ids.has(p.id)) {
+                          setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
+                        } else {
+                          setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
+                        }
                       }
                     }}
                     style={{ background: 'none', border: 'none', borderLeft: `1px solid ${color ?? '#475569'}33`, color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: 'pointer', opacity: 0.7 }}
