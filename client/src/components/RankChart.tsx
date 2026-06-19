@@ -20,9 +20,7 @@ function fmtDate(iso: string) {
 export function RankChart({ data }: { data: InsightsResponse }) {
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
-  const [unpinnedTop15Ids, setUnpinnedTop15Ids] = useState<Set<number>>(new Set());
-  const [preSoloState, setPreSoloState] = useState<{ pinned: Set<number>; unpinned: Set<number> } | null>(null);
+  const [activeIds, setActiveIds] = useState<Set<number>>(new Set());
 
   const { gameDates, participants } = data;
 
@@ -36,58 +34,20 @@ export function RankChart({ data }: { data: InsightsResponse }) {
 
   const totalParticipants = participants.length;
   const query = search.trim().toLowerCase();
-
   const top10 = [...participants].sort((a, b) => a.currentRank - b.currentRank).slice(0, 10);
-  const top10Ids = new Set(top10.map((p) => p.id));
 
-  const activeTop10 = top10.filter((p) => !unpinnedTop15Ids.has(p.id));
-  const extraActive = participants.filter((p) => !top10Ids.has(p.id) && pinnedIds.has(p.id));
-  const activeAll = [...activeTop10, ...extraActive];
-  const activeIds = new Set(activeAll.map((p) => p.id));
+  const activeParticipants = participants
+    .filter((p) => activeIds.has(p.id))
+    .sort((a, b) => a.currentRank - b.currentRank);
 
   const colorMap = new Map<number, string>();
-  top10.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
-  extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[10 + (i % 10)]));
+  activeParticipants.forEach((p, i) => colorMap.set(p.id, PALETTE[i % PALETTE.length]));
 
-  const resetToTop10 = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); setPreSoloState(null); };
-  const clearAll = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set(top10.map((p) => p.id))); setPreSoloState(null); };
-
-  const restorePreSolo = () => {
-    if (preSoloState) {
-      setPinnedIds(preSoloState.pinned);
-      setUnpinnedTop15Ids(preSoloState.unpinned);
-      setPreSoloState(null);
-    } else {
-      resetToTop10();
-    }
-  };
-
-  const solo = (id: number) => {
-    setPreSoloState({ pinned: new Set(pinnedIds), unpinned: new Set(unpinnedTop15Ids) });
-    if (top10Ids.has(id)) {
-      setUnpinnedTop15Ids(new Set(top10.filter((p) => p.id !== id).map((p) => p.id)));
-      setPinnedIds(new Set());
-    } else {
-      setUnpinnedTop15Ids(new Set(top10.map((p) => p.id)));
-      setPinnedIds(new Set([id]));
-    }
-  };
-
-  const handleChipClick = (id: number) => {
-    const isActive = activeIds.has(id);
-    if (isActive && activeIds.size === 1) {
-      restorePreSolo();
-    } else if (isActive) {
-      solo(id);
-    } else {
-      setPreSoloState(null);
-      if (top10Ids.has(id)) {
-        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.delete(id); return next; });
-      } else {
-        setPinnedIds((prev) => { const next = new Set(prev); next.add(id); return next; });
-      }
-    }
-  };
+  const toggleId = (id: number) => setActiveIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const chartData = gameDates.map((date, i) => {
     const obj: Record<string, string | number> = { date: fmtDate(date) };
@@ -112,9 +72,7 @@ export function RankChart({ data }: { data: InsightsResponse }) {
       .filter(Boolean)
       .sort((a, b) => a!.rank - b!.rank) as { name: string; rank: number; id: number; preview: boolean }[];
 
-    const shown = highlighted !== null
-      ? atDate.filter((x) => x.id === highlighted)
-      : atDate.slice(0, 10);
+    const shown = highlighted !== null ? atDate.filter((x) => x.id === highlighted) : atDate.slice(0, 10);
 
     return (
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px', fontSize: 12, minWidth: 180 }}>
@@ -164,7 +122,7 @@ export function RankChart({ data }: { data: InsightsResponse }) {
             ) : null;
           })()}
 
-          {activeAll.map((p) => {
+          {activeParticipants.map((p) => {
             const color = colorMap.get(p.id)!;
             const isHighlighted = highlighted === p.id;
             const isDimmed = highlighted !== null && !isHighlighted;
@@ -186,7 +144,6 @@ export function RankChart({ data }: { data: InsightsResponse }) {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Search + Reset */}
       <div style={{ marginTop: 12, paddingLeft: 8 }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
           <input
@@ -195,31 +152,24 @@ export function RankChart({ data }: { data: InsightsResponse }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              flex: 1,
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: 6,
-              color: '#e2e8f0',
-              fontSize: 12,
-              padding: '6px 10px',
-              outline: 'none',
+              flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 6,
+              color: '#e2e8f0', fontSize: 12, padding: '6px 10px', outline: 'none',
             }}
           />
           <button
-            onClick={clearAll}
+            onClick={() => setActiveIds(new Set())}
             style={{ background: 'none', border: '1px solid #334155', borderRadius: 6, color: '#64748b', fontSize: 12, padding: '6px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Clear
           </button>
           <button
-            onClick={resetToTop10}
+            onClick={() => setActiveIds(new Set(top10.map((p) => p.id)))}
             style={{ background: 'none', border: '1px solid #334155', borderRadius: 6, color: '#64748b', fontSize: 12, padding: '6px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Top 10
           </button>
         </div>
 
-        {/* Scrollable player chip list */}
         <div style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start' }}>
           {filteredList.map((p) => {
             const color = colorMap.get(p.id);
@@ -243,24 +193,13 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                 }}
               >
                 <button
-                  onClick={() => handleChipClick(p.id)}
+                  onClick={() => toggleId(p.id)}
                   style={{ background: 'none', border: 'none', color: 'inherit', fontSize: 'inherit', padding: '2px 6px 2px 8px', cursor: 'pointer' }}
                 >
                   #{p.currentRank} {p.name}
                 </button>
                 <button
-                  onClick={() => {
-                    if (activeIds.size === 1) {
-                      restorePreSolo();
-                    } else {
-                      setPreSoloState(null);
-                      if (top10Ids.has(p.id)) {
-                        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
-                      } else {
-                        setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
-                      }
-                    }
-                  }}
+                  onClick={() => toggleId(p.id)}
                   style={{ background: 'none', border: 'none', borderLeft: isActive ? `1px solid ${color ?? '#475569'}33` : '1px solid transparent', color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: isActive ? 'pointer' : 'default', opacity: 0.7, visibility: isActive ? 'visible' : 'hidden' }}
                 >
                   ×
