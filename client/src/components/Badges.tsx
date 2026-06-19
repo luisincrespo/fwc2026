@@ -28,7 +28,7 @@ function BadgeCard({ badge }: { badge: Badge }) {
           ? badge.winners.map((w, i) => (
               <span key={w.id}>
                 {i > 0 && ', '}
-                <span style={{ color: '#22c55e' }}>{w.name}</span>
+                <span style={{ color: '#e2e8f0' }}>{w.name}</span>
                 {w.detail && <span style={{ color: '#475569' }}> {w.detail}</span>}
               </span>
             ))
