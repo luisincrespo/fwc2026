@@ -747,11 +747,6 @@ app.get('/api/insights', async (req, res) => {
         winners: topWinners(onFireStats, (p) => p.pts, (p) => `${p.pts} pts`),
       },
       {
-        id: 'eagle_eye', emoji: '🦅', name: 'Eagle Eye',
-        description: 'Correct outcome on every completed game',
-        winners: result.filter((p) => p.miss === 0 && p.gamesPlayed > 0).map(({ id, name }) => ({ id, name })),
-      },
-      {
         id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
         description: 'Most draw predictions',
         winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws`),
