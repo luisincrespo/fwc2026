@@ -49,15 +49,16 @@ function UpcomingPredRow({ pred, colSpan }: { pred: UpcomingPrediction; colSpan:
   );
 }
 
-function ExpandedRow({ entry, colSpan, hasUpcoming }: { entry: LeaderboardEntry; colSpan: number; hasUpcoming: boolean }) {
+function ExpandedRow({ entry, colSpan, upcoming }: { entry: LeaderboardEntry; colSpan: number; upcoming: ScheduledMatch[] }) {
   const [upcomingPreds, setUpcomingPreds] = useState<UpcomingPrediction[] | null>(null);
 
   useEffect(() => {
-    if (!hasUpcoming) { setUpcomingPreds([]); return; }
+    if (upcoming.length === 0) { setUpcomingPreds([]); return; }
+    const kickoffSet = new Set(upcoming.map((m) => m.kickoffUtc.slice(0, 13)));
     fetchParticipantUpcoming(entry.id)
-      .then(setUpcomingPreds)
+      .then((preds) => setUpcomingPreds(preds.filter((p) => kickoffSet.has(p.scheduled_at.slice(0, 13)))))
       .catch(() => setUpcomingPreds([]));
-  }, [entry.id, hasUpcoming]);
+  }, [entry.id, upcoming]);
 
   return (
     <>
@@ -81,8 +82,7 @@ function ExpandedRow({ entry, colSpan, hasUpcoming }: { entry: LeaderboardEntry;
 }
 
 export function Leaderboard({ entries, hasLive, flashMap, upcoming }: Props) {
-  const hasUpcoming = upcoming.length > 0;
-  const canExpand = hasLive || hasUpcoming;
+  const canExpand = hasLive || upcoming.length > 0;
   const colSpan = hasLive ? 6 : 3;
 
   const rankCol: ColumnDef<LeaderboardEntry> = {
@@ -139,7 +139,7 @@ export function Leaderboard({ entries, hasLive, flashMap, upcoming }: Props) {
       flashMap={flashMap}
       isExpandable={() => canExpand}
       renderExpanded={(e) => (
-        <ExpandedRow entry={e} colSpan={colSpan} hasUpcoming={hasUpcoming} />
+        <ExpandedRow entry={e} colSpan={colSpan} upcoming={upcoming} />
       )}
     />
   );
