@@ -7,8 +7,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/quinielapopular" element={<App />} />
-        <Route path="*" element={<Navigate to="/quinielapopular" replace />} />
+        <Route path="/quinielapopular/:tab" element={<App />} />
+        <Route path="/quinielapopular" element={<Navigate to="/quinielapopular/live" replace />} />
+        <Route path="*" element={<Navigate to="/quinielapopular/live" replace />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

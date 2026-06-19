@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights } from './api';
 import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
@@ -22,7 +23,10 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [flashMap, setFlashMap] = useState<Map<number, 'up' | 'down'>>(new Map());
-  const [activeTab, setActiveTab] = useState<Tab>('live');
+  const { tab } = useParams<{ tab: string }>();
+  const navigate = useNavigate();
+  const activeTab: Tab = (['live', 'today', 'insights'] as Tab[]).includes(tab as Tab) ? (tab as Tab) : 'live';
+  const setActiveTab = (t: Tab) => navigate(`/quinielapopular/${t}`);
   const [hasPendingResults, setHasPendingResults] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [dailyData, setDailyData] = useState<DailyRecapResponse | null>(null);
