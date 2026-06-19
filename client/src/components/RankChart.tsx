@@ -39,10 +39,10 @@ export function RankChart({ data }: Props) {
   const top15Ids = new Set(top15.map((p) => p.id));
   const colorMap = new Map(top15.map((p, i) => [p.id, PALETTE[i % PALETTE.length]]));
 
-  // Build chart data: one object per game date
+  // Build chart data: negate ranks so Recharts puts #1 at the top naturally
   const chartData = gameDates.map((date, i) => {
     const obj: Record<string, string | number> = { date: fmtDate(date) };
-    for (const p of participants) obj[`p${p.id}`] = p.ranks[i];
+    for (const p of participants) obj[`p${p.id}`] = -p.ranks[i];
     return obj;
   });
 
@@ -58,7 +58,7 @@ export function RankChart({ data }: Props) {
       .map((pl) => {
         const id = Number(pl.dataKey.slice(1));
         const p = participants.find((x) => x.id === id);
-        return p ? { name: p.name, rank: pl.value, id } : null;
+        return p ? { name: p.name, rank: -pl.value, id } : null;  // un-negate for display
       })
       .filter(Boolean)
       .sort((a, b) => a!.rank - b!.rank) as { name: string; rank: number; id: number }[];
@@ -93,15 +93,15 @@ export function RankChart({ data }: Props) {
             tickLine={false}
           />
           <YAxis
-            domain={[totalParticipants, 1]}
-            ticks={[1, 10, 20, 40, 60, totalParticipants]}
+            domain={[-totalParticipants, -1]}
+            ticks={[-1, -10, -20, -40, -60, -totalParticipants]}
             tick={{ fill: '#475569', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={(v) => `#${v}`}
+            tickFormatter={(v) => `#${Math.abs(v)}`}
           />
           <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine y={1} stroke="#1e293b" strokeDasharray="3 3" />
+          <ReferenceLine y={-1} stroke="#1e293b" strokeDasharray="3 3" />
 
           {/* Background lines for participants outside top 15 */}
           {participants
