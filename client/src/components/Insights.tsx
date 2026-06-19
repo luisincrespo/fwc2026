@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { InsightsResponse, ParticipantInsight } from '../types';
 
-type AccuracySort = 'exact' | 'accuracy' | 'draws';
+type AccuracySort = 'exact' | 'accuracy';
 
 const SECTION_LABEL: React.CSSProperties = {
   fontSize: 11,
@@ -42,8 +42,7 @@ function SortButton({ label, active, onClick }: { label: string; active: boolean
 function AccuracyTable({ participants, sort }: { participants: ParticipantInsight[]; sort: AccuracySort }) {
   const sorted = [...participants].sort((a, b) => {
     if (sort === 'exact') return b.exactPct - a.exactPct || b.exact - a.exact;
-    if (sort === 'accuracy') return b.accuracyPct - a.accuracyPct || (b.exact + b.correct) - (a.exact + a.correct);
-    return b.drawPct - a.drawPct || b.drawPredictions - a.drawPredictions;
+    return b.accuracyPct - a.accuracyPct || (b.exact + b.correct) - (a.exact + a.correct);
   });
 
   return (
@@ -56,8 +55,7 @@ function AccuracyTable({ participants, sort }: { participants: ParticipantInsigh
             <th style={{ padding: '4px 8px 8px 0', fontWeight: 600, textAlign: 'center' }}>Exact</th>
             <th style={{ padding: '4px 8px 8px 0', fontWeight: 600, textAlign: 'center' }}>Correct</th>
             <th style={{ padding: '4px 8px 8px 0', fontWeight: 600, textAlign: 'center' }}>Miss</th>
-            <th style={{ padding: '4px 8px 8px 0', fontWeight: 600, textAlign: 'center' }}>Acc%</th>
-            <th style={{ padding: '4px 0 8px 0', fontWeight: 600, textAlign: 'center' }}>Draw%</th>
+            <th style={{ padding: '4px 0 8px 0', fontWeight: 600, textAlign: 'center' }}>Acc%</th>
           </tr>
         </thead>
         <tbody>
@@ -71,8 +69,7 @@ function AccuracyTable({ participants, sort }: { participants: ParticipantInsigh
               <td style={{ padding: '6px 8px', textAlign: 'center', color: '#f59e0b', fontWeight: 600 }}>{p.exact}</td>
               <td style={{ padding: '6px 8px', textAlign: 'center', color: '#22c55e' }}>{p.correct}</td>
               <td style={{ padding: '6px 8px', textAlign: 'center', color: '#475569' }}>{p.miss}</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', color: '#94a3b8' }}>{p.accuracyPct}%</td>
-              <td style={{ padding: '6px 0', textAlign: 'center', color: '#94a3b8' }}>{p.drawPct}%</td>
+              <td style={{ padding: '6px 0', textAlign: 'center', color: '#94a3b8' }}>{p.accuracyPct}%</td>
             </tr>
           ))}
         </tbody>
@@ -147,7 +144,6 @@ export function Insights({ data, loading }: Props) {
           <div style={{ display: 'flex', gap: 4 }}>
             <SortButton label="Exact" active={sort === 'exact'} onClick={() => setSort('exact')} />
             <SortButton label="Accuracy" active={sort === 'accuracy'} onClick={() => setSort('accuracy')} />
-            <SortButton label="Draws" active={sort === 'draws'} onClick={() => setSort('draws')} />
           </div>
         </div>
         <div style={CARD}>
