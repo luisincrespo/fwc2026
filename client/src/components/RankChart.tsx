@@ -223,7 +223,9 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                 {isActive && (
                   <button
                     onClick={() => {
-                      if (top10Ids.has(p.id)) {
+                      if (activeIds.size === 1) {
+                        resetToTop10();
+                      } else if (top10Ids.has(p.id)) {
                         setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
                       } else {
                         setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
