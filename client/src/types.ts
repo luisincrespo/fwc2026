@@ -44,6 +44,14 @@ export interface LiveMatch {
   performance?: MatchPerformance;
 }
 
+export interface ScoringRules {
+  A: number;
+  B: number;
+  D: number;
+  E: number;
+  marginFactor: number;
+}
+
 export interface LivePrediction {
   homeTeam: string;
   awayTeam: string;
@@ -53,6 +61,7 @@ export interface LivePrediction {
   liveAway: number;
   predictedHome: number;
   predictedAway: number;
+  stage: 'group' | 'ko';
   points: number;
 }
 
@@ -69,6 +78,7 @@ export interface LeaderboardEntry {
 
 export interface LiveLeaderboardResponse {
   updatedAt: string;
+  scoringRules: ScoringRules;
   liveMatches: LiveMatch[];
   leaderboard: LeaderboardEntry[];
 }

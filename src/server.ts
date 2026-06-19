@@ -185,6 +185,7 @@ app.get('/api/leaderboard', async (req, res) => {
           liveAway: match.awayGoals,
           predictedHome: pred.predicted_home,
           predictedAway: pred.predicted_away,
+          stage: pred.stage,
           points,
         });
       }
@@ -224,6 +225,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
     return res.json({
       updatedAt: new Date().toISOString(),
+      scoringRules: rules,
       liveMatches: liveMatches.map((m) => {
         const perf = livePerfMap.get(`${m.homeTeam}|${m.awayTeam}`);
         return {

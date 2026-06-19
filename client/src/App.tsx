@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights } from './api';
-import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse } from './types';
-import { LiveMatchBanner } from './components/LiveMatchBanner';
+import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse, LeaderboardEntry } from './types';
+import { LiveMatchBanner, type HypoScores } from './components/LiveMatchBanner';
+import { calculatePoints } from './lib/scoring';
 import { BiggestMovers } from './components/BiggestMovers';
 import { DayMovers } from './components/DayMovers';
 import { TopScorers } from './components/TopScorers';
@@ -36,6 +37,7 @@ export function App() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const insightsFetched = useRef(false);
   const prevRanks = useRef<Map<number, number>>(new Map());
+  const [hypo, setHypo] = useState<HypoScores>({});
 
   const load = useCallback(async (bust = false) => {
     try {
@@ -73,6 +75,53 @@ export function App() {
       setLoading(false);
     }
   }, []);
+
+  const adjustHypo = useCallback((key: string, home: number, away: number) => {
+    setHypo((prev) => {
+      const match = data?.liveMatches.find((m) => `${m.homeTeam}|${m.awayTeam}` === key);
+      const next = { ...prev };
+      if (match && home === match.homeGoals && away === match.awayGoals) {
+        delete next[key];
+      } else {
+        next[key] = { home, away };
+      }
+      return next;
+    });
+  }, [data?.liveMatches]);
+
+  const resetHypo = useCallback(() => setHypo({}), []);
+
+  const hypoEntries = useMemo((): LeaderboardEntry[] => {
+    if (!data || Object.keys(hypo).length === 0) return data?.leaderboard ?? [];
+    const rules = data.scoringRules;
+
+    const recalculated = data.leaderboard.map((entry) => {
+      let hypoLivePoints = 0;
+      const hypoBreakdown = entry.liveBreakdown.map((bd) => {
+        const key = `${bd.homeTeam}|${bd.awayTeam}`;
+        const score = hypo[key] ?? { home: bd.liveHome, away: bd.liveAway };
+        const pts = calculatePoints({ home: bd.predictedHome, away: bd.predictedAway }, score, bd.stage, rules);
+        hypoLivePoints += pts;
+        return { ...bd, liveHome: score.home, liveAway: score.away, points: pts };
+      });
+      return { ...entry, livePoints: hypoLivePoints, totalPoints: entry.officialPoints + hypoLivePoints, liveBreakdown: hypoBreakdown };
+    });
+
+    const sorted = [...recalculated].sort((a, b) => b.totalPoints - a.totalPoints || a.name.localeCompare(b.name));
+    const rankMap = new Map<number, number>();
+    for (let i = 0; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      rankMap.set(sorted[i].id, prev && sorted[i].totalPoints === prev.totalPoints ? rankMap.get(prev.id)! : i + 1);
+    }
+
+    return recalculated
+      .map((e) => {
+        const officialRank = e.rank + e.rankDelta;
+        const hypoRank = rankMap.get(e.id)!;
+        return { ...e, rank: hypoRank, rankDelta: officialRank - hypoRank };
+      })
+      .sort((a, b) => a.rank - b.rank);
+  }, [data, hypo]);
 
   useEffect(() => {
     load();
@@ -177,19 +226,19 @@ export function App() {
       {data && activeTab === 'live' && (
         <>
           <UpcomingMatches matches={upcoming} />
-          <LiveMatchBanner matches={data.liveMatches} />
+          <LiveMatchBanner matches={data.liveMatches} hypo={hypo} onAdjust={adjustHypo} onReset={resetHypo} />
           {data.liveMatches.length > 0 && (
             <>
               <p style={{ fontSize: 12, color: '#475569', textAlign: 'right', marginBottom: 8 }}>
-                Standings reflect current live scores
+                {Object.keys(hypo).length > 0 ? 'Simulated standings — not the actual live score' : 'Standings reflect current live scores'}
               </p>
-              <BiggestMovers entries={data.leaderboard} />
+              <BiggestMovers entries={hypoEntries} />
             </>
           )}
           <Leaderboard
-            entries={data.leaderboard}
+            entries={hypoEntries}
             hasLive={data.liveMatches.length > 0}
-            flashMap={flashMap}
+            flashMap={Object.keys(hypo).length > 0 ? new Map() : flashMap}
             upcoming={upcoming}
           />
         </>
