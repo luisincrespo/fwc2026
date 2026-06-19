@@ -101,9 +101,6 @@ export function App() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>
             Quiniela Popular FWC2026
           </h1>
-          <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            FWC2026 Hub
-          </p>
         </div>
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
           {data && <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>}
