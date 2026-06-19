@@ -450,8 +450,9 @@ app.get('/api/schedule', async (req, res) => {
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
     const now = Date.now();
-    const upcomingGameIds = new Set(
-      todayGames.filter((g) => !g.is_completed && (new Date(g.scheduled_at).getTime() - now) > 0).map((g) => g.game_id),
+    // Include games not yet completed and within 150 min of kickoff (covers the ESPN lag window).
+    const gameIdsForPicks = new Set(
+      todayGames.filter((g) => !g.is_completed && (now - new Date(g.scheduled_at).getTime()) < 150 * 60 * 1000).map((g) => g.game_id),
     );
 
     type PicksEntry = { home: number; draw: number; away: number; scores: Map<string, number>; total: number };
@@ -465,15 +466,10 @@ app.get('/api/schedule', async (req, res) => {
       allBracketsWithName = await Promise.all(
         participants.map((p) => getBracket(p.id).then((preds) => ({ name: p.name, preds }))),
       );
-      for (const id of upcomingGameIds) picksMap.set(id, { home: 0, draw: 0, away: 0, scores: new Map(), total: 0 });
-      console.log('[schedule] upcomingGameIds:', [...upcomingGameIds], 'todayGames:', todayGames.map(g => `${g.game_id}:${g.home_team_name}v${g.away_team_name}:${g.scheduled_at}:completed=${g.is_completed}`));
-      for (const { name, preds } of allBracketsWithName) {
+      for (const id of gameIdsForPicks) picksMap.set(id, { home: 0, draw: 0, away: 0, scores: new Map(), total: 0 });
+      for (const { preds } of allBracketsWithName) {
         for (const pred of preds) {
-          if (!upcomingGameIds.has(pred.game_id)) continue;
-          if (pred.predicted_home == null || pred.predicted_away == null) {
-            console.log(`[schedule] null prediction for game ${pred.game_id} (${pred.home_team} v ${pred.away_team}) from ${name}`);
-            continue;
-          }
+          if (!gameIdsForPicks.has(pred.game_id) || pred.predicted_home == null || pred.predicted_away == null) continue;
           const entry = picksMap.get(pred.game_id)!;
           entry.total++;
           if (pred.predicted_home > pred.predicted_away) entry.home++;
@@ -511,7 +507,7 @@ app.get('/api/schedule', async (req, res) => {
       }
 
       let picks: { home: number; draw: number; away: number; topScores: { score: string; count: number }[]; total: number } | undefined;
-      if (status === 'UPCOMING' && picksMap.has(g.game_id)) {
+      if ((status === 'UPCOMING' || status === 'LIVE') && picksMap.has(g.game_id)) {
         const p = picksMap.get(g.game_id)!;
         const topScores = [...p.scores.entries()]
           .sort((a, b) => b[1] - a[1])
