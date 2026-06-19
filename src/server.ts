@@ -466,9 +466,14 @@ app.get('/api/schedule', async (req, res) => {
         participants.map((p) => getBracket(p.id).then((preds) => ({ name: p.name, preds }))),
       );
       for (const id of upcomingGameIds) picksMap.set(id, { home: 0, draw: 0, away: 0, scores: new Map(), total: 0 });
-      for (const { preds } of allBracketsWithName) {
+      console.log('[schedule] upcomingGameIds:', [...upcomingGameIds], 'todayGames:', todayGames.map(g => `${g.game_id}:${g.home_team_name}v${g.away_team_name}:${g.scheduled_at}:completed=${g.is_completed}`));
+      for (const { name, preds } of allBracketsWithName) {
         for (const pred of preds) {
-          if (!upcomingGameIds.has(pred.game_id) || pred.predicted_home == null || pred.predicted_away == null) continue;
+          if (!upcomingGameIds.has(pred.game_id)) continue;
+          if (pred.predicted_home == null || pred.predicted_away == null) {
+            console.log(`[schedule] null prediction for game ${pred.game_id} (${pred.home_team} v ${pred.away_team}) from ${name}`);
+            continue;
+          }
           const entry = picksMap.get(pred.game_id)!;
           entry.total++;
           if (pred.predicted_home > pred.predicted_away) entry.home++;

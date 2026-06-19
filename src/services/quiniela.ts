@@ -164,8 +164,10 @@ export async function getBracket(participantId: number): Promise<Prediction[]> {
     }),
   );
 
-  // Predictions are locked for the tournament duration
-  cache.set(cacheKey, predictions, 30 * 24 * 60 * 60 * 1000);
+  // Group stage predictions are locked; KO predictions are submitted round-by-round.
+  const hasNullPreds = predictions.some((p) => p.predicted_home == null);
+  const ttl = hasNullPreds ? 5 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  cache.set(cacheKey, predictions, ttl);
   return predictions;
 }
 
