@@ -38,19 +38,17 @@ export function RankChart({ data }: { data: InsightsResponse }) {
   const totalParticipants = participants.length;
   const query = search.trim().toLowerCase();
 
-  const top15 = [...participants].sort((a, b) => a.currentRank - b.currentRank).slice(0, 15);
-  const top15Ids = new Set(top15.map((p) => p.id));
+  const top10 = [...participants].sort((a, b) => a.currentRank - b.currentRank).slice(0, 10);
+  const top10Ids = new Set(top10.map((p) => p.id));
 
-  const activeTop15 = top15.filter((p) => !unpinnedTop15Ids.has(p.id));
-  const extraActive = participants.filter(
-    (p) => !top15Ids.has(p.id) && (pinnedIds.has(p.id) || (query.length >= 1 && p.name.toLowerCase().includes(query))),
-  );
-  const activeAll = [...activeTop15, ...extraActive];
+  const activeTop10 = top10.filter((p) => !unpinnedTop15Ids.has(p.id));
+  const extraActive = participants.filter((p) => !top10Ids.has(p.id) && pinnedIds.has(p.id));
+  const activeAll = [...activeTop10, ...extraActive];
   const activeIds = new Set(activeAll.map((p) => p.id));
 
   const colorMap = new Map<number, string>();
-  top15.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
-  extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[15 + (i % 5)]));
+  top10.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
+  extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[10 + (i % 10)]));
 
   const reset = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); };
 
@@ -62,16 +60,16 @@ export function RankChart({ data }: { data: InsightsResponse }) {
       reset();
     } else if (isActive) {
       // Active player with others → solo this one
-      if (top15Ids.has(id)) {
-        setUnpinnedTop15Ids(new Set(top15.filter((p) => p.id !== id).map((p) => p.id)));
+      if (top10Ids.has(id)) {
+        setUnpinnedTop15Ids(new Set(top10.filter((p) => p.id !== id).map((p) => p.id)));
         setPinnedIds(new Set());
       } else {
-        setUnpinnedTop15Ids(new Set(top15.map((p) => p.id)));
+        setUnpinnedTop15Ids(new Set(top10.map((p) => p.id)));
         setPinnedIds(new Set([id]));
       }
     } else {
       // Inactive → activate
-      if (top15Ids.has(id)) {
+      if (top10Ids.has(id)) {
         setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.delete(id); return next; });
       } else {
         setPinnedIds((prev) => { const next = new Set(prev); next.add(id); return next; });
@@ -227,7 +225,7 @@ export function RankChart({ data }: { data: InsightsResponse }) {
                 {isActive && (
                   <button
                     onClick={() => {
-                      if (top15Ids.has(p.id)) {
+                      if (top10Ids.has(p.id)) {
                         setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
                       } else {
                         setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
