@@ -201,25 +201,44 @@ export function RankChart({ data }: { data: InsightsResponse }) {
             const color = colorMap.get(p.id);
             const isActive = activeIds.has(p.id);
             return (
-              <button
+              <span
                 key={p.id}
-                onClick={() => handleChipClick(p.id)}
                 onMouseEnter={() => setHighlighted(p.id)}
                 onMouseLeave={() => setHighlighted(null)}
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
                   background: isActive ? '#1e293b' : 'none',
                   border: `1px solid ${isActive ? (color ?? '#475569') : '#1e293b'}`,
                   borderRadius: 20,
                   color: isActive ? (color ?? '#94a3b8') : '#64748b',
                   fontSize: 11,
-                  padding: '2px 8px',
-                  cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   opacity: highlighted !== null && highlighted !== p.id ? 0.4 : 1,
+                  overflow: 'hidden',
                 }}
               >
-                #{p.currentRank} {p.name}
-              </button>
+                <button
+                  onClick={() => handleChipClick(p.id)}
+                  style={{ background: 'none', border: 'none', color: 'inherit', fontSize: 'inherit', padding: '2px 6px 2px 8px', cursor: 'pointer' }}
+                >
+                  #{p.currentRank} {p.name}
+                </button>
+                {isActive && (
+                  <button
+                    onClick={() => {
+                      if (top15Ids.has(p.id)) {
+                        setUnpinnedTop15Ids((prev) => { const next = new Set(prev); next.add(p.id); return next; });
+                      } else {
+                        setPinnedIds((prev) => { const next = new Set(prev); next.delete(p.id); return next; });
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', borderLeft: `1px solid ${color ?? '#475569'}33`, color: 'inherit', fontSize: 10, padding: '2px 6px 2px 4px', cursor: 'pointer', opacity: 0.7 }}
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
             );
           })}
         </div>
