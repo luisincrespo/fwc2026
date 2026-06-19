@@ -24,6 +24,37 @@ export interface ParticipantStanding {
 
 const FIVE_MIN = 5 * 60 * 1000;
 
+export interface BreakdownEntry {
+  game_id: number;
+  scheduled_at: string;
+  home_team: string;
+  away_team: string;
+  predicted_home: number;
+  predicted_away: number;
+  actual_home: number;
+  actual_away: number;
+  points: number;
+  categories_awarded: string[];
+}
+
+export interface ParticipantWithBreakdown extends ParticipantStanding {
+  breakdown: BreakdownEntry[];
+}
+
+function parseScoringRules(scoringRes: Record<string, unknown>): ScoringRules {
+  const cats = scoringRes['categories'] as Array<Record<string, unknown>>;
+  const byCode: Record<string, number> = {};
+  for (const cat of cats) byCode[cat['code'] as string] = cat['points'] as number;
+  const settings = scoringRes['settings'] as Record<string, unknown>;
+  return {
+    A: byCode['A'] ?? 3,
+    B: byCode['B'] ?? 3,
+    D: byCode['D'] ?? 5,
+    E: byCode['E'] ?? 2,
+    marginFactor: Number(settings['margin_factor'] ?? 1),
+  };
+}
+
 export async function getOfficialLeaderboard(): Promise<{
   leaderboard: ParticipantStanding[];
   rules: ScoringRules;
@@ -45,23 +76,75 @@ export async function getOfficialLeaderboard(): Promise<{
     }),
   );
 
-  const cats: Array<Record<string, unknown>> = scoringRes.data.categories;
-  const byCode: Record<string, number> = {};
-  for (const cat of cats) {
-    byCode[cat['code'] as string] = cat['points'] as number;
-  }
-
-  const rules: ScoringRules = {
-    A: byCode['A'] ?? 3,
-    B: byCode['B'] ?? 3,
-    D: byCode['D'] ?? 5,
-    E: byCode['E'] ?? 2,
-    marginFactor: Number(scoringRes.data.settings.margin_factor ?? 1),
-  };
-
-  const result = { leaderboard, rules };
+  const result = { leaderboard, rules: parseScoringRules(scoringRes.data) };
   cache.set(cacheKey, result, FIVE_MIN);
   return result;
+}
+
+export async function getLeaderboardWithBreakdown(): Promise<{
+  participants: ParticipantWithBreakdown[];
+  rules: ScoringRules;
+}> {
+  const cacheKey = 'quiniela:scores:full';
+  const cached = cache.get<{ participants: ParticipantWithBreakdown[]; rules: ScoringRules }>(cacheKey);
+  if (cached) return cached;
+
+  const [scoresRes, scoringRes] = await Promise.all([
+    client.get(`/${API_KEY}/scores`),
+    client.get(`/${API_KEY}/scoring`),
+  ]);
+
+  const participants: ParticipantWithBreakdown[] = scoresRes.data.leaderboard.map(
+    (p: Record<string, unknown>) => ({
+      id: p['id'] as number,
+      name: p['name'] as string,
+      total_points: p['total_points'] as number,
+      breakdown: ((p['breakdown'] as unknown[]) ?? []).map((g) => {
+        const r = g as Record<string, unknown>;
+        return {
+          game_id: r['game_id'] as number,
+          scheduled_at: r['scheduled_at'] as string,
+          home_team: r['home_team'] as string,
+          away_team: r['away_team'] as string,
+          predicted_home: r['predicted_home'] as number,
+          predicted_away: r['predicted_away'] as number,
+          actual_home: r['actual_home'] as number,
+          actual_away: r['actual_away'] as number,
+          points: r['points'] as number,
+          categories_awarded: (r['categories_awarded'] as string[]) ?? [],
+        };
+      }),
+    }),
+  );
+
+  const result = { participants, rules: parseScoringRules(scoringRes.data) };
+  cache.set(cacheKey, result, FIVE_MIN);
+  return result;
+}
+
+export interface UpcomingPrediction {
+  game_id: number;
+  predicted_home: number;
+  predicted_away: number;
+}
+
+export async function getUpcoming(participantId: number): Promise<UpcomingPrediction[]> {
+  const cacheKey = `quiniela:upcoming:${participantId}`;
+  const cached = cache.get<UpcomingPrediction[]>(cacheKey);
+  if (cached) return cached;
+
+  const res = await client.get(`/${API_KEY}/upcoming/${participantId}`);
+  const games: UpcomingPrediction[] = ((res.data.games as unknown[]) ?? []).map((g) => {
+    const r = g as Record<string, unknown>;
+    return {
+      game_id: r['game_id'] as number,
+      predicted_home: r['predicted_home'] as number,
+      predicted_away: r['predicted_away'] as number,
+    };
+  });
+
+  cache.set(cacheKey, games, FIVE_MIN);
+  return games;
 }
 
 export async function getBracket(participantId: number): Promise<Prediction[]> {

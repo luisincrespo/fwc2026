@@ -1,4 +1,4 @@
-import type { LiveLeaderboardResponse, ScheduleResponse, DailyRecapResponse } from './types';
+import type { LiveLeaderboardResponse, ScheduleResponse, DailyRecapResponse, InsightsResponse } from './types';
 
 function todayRange() {
   const now = new Date();
@@ -12,7 +12,7 @@ export async function fetchLeaderboard(bust = false): Promise<LiveLeaderboardRes
   const params = new URLSearchParams();
   if (mock === 'true') params.set('mock', 'true');
   if (bust) params.set('bust', 'true');
-  const res = await fetch(`/api/live-leaderboard?${params}`);
+  const res = await fetch(`/api/leaderboard?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
@@ -35,6 +35,14 @@ export async function fetchDailyRecap(bust = false): Promise<DailyRecapResponse>
   const mock = new URLSearchParams(window.location.search).get('mock');
   if (mock === 'true') params.set('mock', 'true');
   const res = await fetch(`/api/daily-recap?${params}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+export async function fetchInsights(bust = false): Promise<InsightsResponse> {
+  const params = new URLSearchParams();
+  if (bust) params.set('bust', 'true');
+  const res = await fetch(`/api/insights?${params}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { fetchLeaderboard, fetchSchedule, fetchDailyRecap } from './api';
-import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse } from './types';
+import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights } from './api';
+import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse } from './types';
 import { LiveMatchBanner } from './components/LiveMatchBanner';
 import { BiggestMovers } from './components/BiggestMovers';
 import { DayMovers } from './components/DayMovers';
@@ -9,10 +9,11 @@ import { Leaderboard } from './components/Leaderboard';
 import { DailyMovement } from './components/DailyMovement';
 import { UpcomingMatches } from './components/UpcomingMatches';
 import { FinishedMatches } from './components/FinishedMatches';
+import { Insights } from './components/Insights';
 
 const POLL_INTERVAL = 5 * 60 * 1000;
 
-type Tab = 'live' | 'today';
+type Tab = 'live' | 'today' | 'insights';
 
 export function App() {
   const [data, setData] = useState<LiveLeaderboardResponse | null>(null);
@@ -27,6 +28,9 @@ export function App() {
   const [dailyData, setDailyData] = useState<DailyRecapResponse | null>(null);
   const [dailyLoading, setDailyLoading] = useState(false);
   const dailyFetched = useRef(false);
+  const [insightsData, setInsightsData] = useState<InsightsResponse | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const insightsFetched = useRef(false);
   const prevRanks = useRef<Map<number, number>>(new Map());
 
   const load = useCallback(async (bust = false) => {
@@ -83,6 +87,11 @@ export function App() {
       setDailyLoading(true);
       fetchDailyRecap().then(setDailyData).finally(() => setDailyLoading(false));
     }
+    if (activeTab === 'insights' && !insightsFetched.current) {
+      insightsFetched.current = true;
+      setInsightsLoading(true);
+      fetchInsights().then(setInsightsData).finally(() => setInsightsLoading(false));
+    }
   }, [activeTab]);
 
   return (
@@ -93,7 +102,7 @@ export function App() {
             Quiniela Popular FWC2026
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-            Live Leaderboard
+            FWC2026 Hub
           </p>
         </div>
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
@@ -118,7 +127,7 @@ export function App() {
       </div>
 
       <div style={{ display: 'flex', gap: 2, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 0 }}>
-        {(['live', 'today'] as const).map((tab) => (
+        {([['live', '📡 Live'], ['today', '📅 Today'], ['insights', '📊 Insights']] as const).map(([tab, label]) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -134,7 +143,7 @@ export function App() {
               marginBottom: -1,
             }}
           >
-            {tab === 'live' ? '📡 Live' : '📅 Today'}
+            {label}
           </button>
         ))}
       </div>
@@ -195,6 +204,10 @@ export function App() {
           )}
           <DailyMovement data={dailyData} loading={dailyLoading} />
         </>
+      )}
+
+      {activeTab === 'insights' && (
+        <Insights data={insightsData} loading={insightsLoading} />
       )}
     </div>
   );

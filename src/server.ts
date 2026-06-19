@@ -2,13 +2,14 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { getOfficialLeaderboard, getBracket, getGames } from './services/quiniela.js';
+import { getOfficialLeaderboard, getBracket, getGames, getLeaderboardWithBreakdown, getUpcoming } from './services/quiniela.js';
 import { getEspnMatches, type EspnGoal } from './services/espn.js';
 import { calculateLivePoints } from './scoring.js';
 import * as cache from './cache.js';
 
 function bustQuinielaCache() {
   cache.del('quiniela:scores');
+  cache.del('quiniela:scores:full');
   cache.del('quiniela:games');
 }
 
@@ -68,7 +69,7 @@ function flipGoals(goals: EspnGoal[]): EspnGoal[] {
   return goals.map((g) => ({ ...g, team: g.team === 'home' ? 'away' : 'home' as const }));
 }
 
-app.get('/api/live-leaderboard', async (req, res) => {
+app.get('/api/leaderboard', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();
     const [{ leaderboard, rules }, espnMatches, allGames] = await Promise.all([
@@ -558,6 +559,99 @@ app.get('/api/schedule', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch schedule' });
+  }
+});
+
+app.get('/api/insights', async (req, res) => {
+  try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
+
+    const { participants } = await getLeaderboardWithBreakdown();
+
+    // Fetch upcoming predictions for every participant in parallel
+    const upcomingAll = await Promise.all(
+      participants.map((p) => getUpcoming(p.id).then((games) => ({ id: p.id, games }))),
+    );
+    const upcomingMap = new Map(upcomingAll.map((u) => [u.id, u.games]));
+
+    // Current ranking
+    const currentSorted = [...participants].sort((a, b) => b.total_points - a.total_points);
+    const currentRankMap = new Map<number, number>();
+    for (let i = 0; i < currentSorted.length; i++) {
+      const prev = currentSorted[i - 1];
+      const rank = prev && prev.total_points === currentSorted[i].total_points
+        ? currentRankMap.get(prev.id)!
+        : i + 1;
+      currentRankMap.set(currentSorted[i].id, rank);
+    }
+
+    // Find earliest game date to use as the trajectory reference point
+    let firstGameDate: string | undefined;
+    for (const p of participants) {
+      for (const g of p.breakdown) {
+        if (!firstGameDate || g.scheduled_at < firstGameDate) firstGameDate = g.scheduled_at.slice(0, 10);
+      }
+    }
+
+    // Rank after the first game day (used for trajectory)
+    let firstDayRankMap: Map<number, number> | undefined;
+    if (firstGameDate) {
+      const cutoff = new Date(`${firstGameDate}T23:59:59.999Z`);
+      const day1Points = participants.map((p) => ({
+        id: p.id,
+        points: p.breakdown
+          .filter((g) => new Date(g.scheduled_at) <= cutoff)
+          .reduce((sum, g) => sum + g.points, 0),
+      }));
+      const day1Sorted = [...day1Points].sort((a, b) => b.points - a.points);
+      firstDayRankMap = new Map();
+      for (let i = 0; i < day1Sorted.length; i++) {
+        const prev = day1Sorted[i - 1];
+        const rank = prev && day1Sorted[i].points === prev.points
+          ? firstDayRankMap.get(prev.id)!
+          : i + 1;
+        firstDayRankMap.set(day1Sorted[i].id, rank);
+      }
+    }
+
+    const result = participants.map((p) => {
+      const bd = p.breakdown;
+      const exact = bd.filter((g) => g.categories_awarded.includes('D')).length;
+      const correct = bd.filter((g) => !g.categories_awarded.includes('D') && g.categories_awarded.includes('A')).length;
+      const gamesPlayed = bd.length;
+
+      const upcoming = upcomingMap.get(p.id) ?? [];
+      const allPreds = [
+        ...bd.map((g) => ({ h: g.predicted_home, a: g.predicted_away })),
+        ...upcoming.map((g) => ({ h: g.predicted_home, a: g.predicted_away })),
+      ];
+      const draws = allPreds.filter((x) => x.h === x.a).length;
+
+      const currentRank = currentRankMap.get(p.id) ?? 0;
+      const rankOnFirstDay = firstDayRankMap?.get(p.id);
+
+      return {
+        id: p.id,
+        name: p.name,
+        currentRank,
+        gamesPlayed,
+        exact,
+        correct,
+        miss: gamesPlayed - exact - correct,
+        exactPct: gamesPlayed > 0 ? Math.round(exact / gamesPlayed * 100) : 0,
+        accuracyPct: gamesPlayed > 0 ? Math.round((exact + correct) / gamesPlayed * 100) : 0,
+        drawPredictions: draws,
+        totalPredictions: allPreds.length,
+        drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
+        rankOnFirstDay,
+        rankChange: rankOnFirstDay !== undefined ? rankOnFirstDay - currentRank : undefined,
+      };
+    });
+
+    res.json({ updatedAt: new Date().toISOString(), participants: result, firstGameDate });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build insights' });
   }
 });
 

@@ -122,3 +122,26 @@ export interface DailyRecapResponse {
   todayMatchCount: number;
   leaderboard: DailyEntry[];
 }
+
+export interface ParticipantInsight {
+  id: number;
+  name: string;
+  currentRank: number;
+  gamesPlayed: number;
+  exact: number;
+  correct: number;
+  miss: number;
+  exactPct: number;
+  accuracyPct: number;
+  drawPredictions: number;
+  totalPredictions: number;
+  drawPct: number;
+  rankOnFirstDay?: number;
+  rankChange?: number;
+}
+
+export interface InsightsResponse {
+  updatedAt: string;
+  participants: ParticipantInsight[];
+  firstGameDate?: string;
+}
