@@ -25,13 +25,17 @@ function BadgeCard({ badge }: { badge: Badge }) {
       <div style={{ color: '#475569', fontSize: 11 }}>{badge.description}</div>
       <div style={{ marginTop: 4, fontSize: 12 }}>
         {hasWinners
-          ? badge.winners.map((w, i) => (
-              <span key={w.id}>
-                {i > 0 && ', '}
-                <span style={{ color: '#e2e8f0' }}>{w.name}</span>
-                {w.detail && <span style={{ color: '#475569' }}> {w.detail}</span>}
-              </span>
-            ))
+          ? <>
+              {badge.winners.map((w, i) => (
+                <span key={w.id}>
+                  {i > 0 && ', '}
+                  <span style={{ color: '#e2e8f0' }}>{w.name}</span>
+                </span>
+              ))}
+              {badge.winners[0].detail && (
+                <span style={{ color: '#475569' }}> · {badge.winners[0].detail}</span>
+              )}
+            </>
           : <span style={{ color: '#334155' }}>No one yet</span>
         }
       </div>
