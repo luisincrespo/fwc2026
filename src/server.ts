@@ -750,6 +750,11 @@ app.get('/api/insights', async (req, res) => {
         winners: topWinners(onFireStats, (p) => p.pts, (p) => `${p.pts} pts`),
       },
       {
+        id: 'cold_streak', emoji: '🧊', name: 'Cold Streak',
+        description: `Least points in the last ${Math.min(3, gameDates.length)} game days`,
+        winners: bottomWinners(onFireStats, (p) => p.pts, (p) => `${p.pts} pts`, Infinity),
+      },
+      {
         id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
         description: 'Most draw predictions',
         winners: topWinners(result, (p) => p.drawPredictions, (p) => `${p.drawPredictions} draws`),
