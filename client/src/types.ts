@@ -139,6 +139,13 @@ export interface ParticipantInsight {
   ranks: number[];  // rank at end of each game date (parallel to InsightsResponse.gameDates)
 }
 
+export interface FunFact {
+  id: string;
+  emoji: string;
+  label: string;
+  value: string;
+}
+
 export interface BadgeWinner {
   id: number;
   name: string;
@@ -158,4 +165,5 @@ export interface InsightsResponse {
   participants: ParticipantInsight[];
   gameDates: string[];
   badges: Badge[];
+  funFacts: FunFact[];
 }

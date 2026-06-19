@@ -785,7 +785,65 @@ app.get('/api/insights', async (req, res) => {
       },
     ];
 
-    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates, badges });
+    // Fun facts
+    const scorelineCounts = new Map<string, number>();
+    const gameStatsMap = new Map<number, { home: string; away: string; correct: number; total: number; totalPts: number }>();
+    for (const p of participants) {
+      for (const g of p.breakdown) {
+        const key = `${g.predicted_home}–${g.predicted_away}`;
+        scorelineCounts.set(key, (scorelineCounts.get(key) ?? 0) + 1);
+        if (!gameStatsMap.has(g.game_id)) {
+          gameStatsMap.set(g.game_id, { home: g.home_team, away: g.away_team, correct: 0, total: 0, totalPts: 0 });
+        }
+        const s = gameStatsMap.get(g.game_id)!;
+        s.total++;
+        if (g.categories_awarded.includes('A') || g.categories_awarded.includes('D')) s.correct++;
+        s.totalPts += g.points;
+      }
+    }
+
+    const totalPredictions = [...scorelineCounts.values()].reduce((s, n) => s + n, 0);
+    const [topScoreline, topScorelineCount] = [...scorelineCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+    const scorelinePct = totalPredictions > 0 && topScorelineCount ? Math.round(topScorelineCount / totalPredictions * 100) : 0;
+
+    const gameList = [...gameStatsMap.entries()].map(([id, s]) => ({
+      id,
+      name: `${s.home} vs ${s.away}`,
+      accuracyPct: s.total > 0 ? Math.round(s.correct / s.total * 100) : 0,
+      avgPts: s.total > 0 ? Math.round(s.totalPts / s.total * 10) / 10 : 0,
+    }));
+    const byAccuracy = [...gameList].sort((a, b) => a.accuracyPct - b.accuracyPct);
+    const hardestGame = byAccuracy[0];
+    const easiestGame = byAccuracy[byAccuracy.length - 1];
+    const bestScoringGame = [...gameList].sort((a, b) => b.avgPts - a.avgPts)[0];
+
+    const funFacts: { id: string; emoji: string; label: string; value: string }[] = [];
+    if (topScoreline) {
+      funFacts.push({
+        id: 'top_scoreline', emoji: '⚽', label: 'Most predicted scoreline',
+        value: `${topScoreline} — chosen in ${scorelinePct}% of all predictions`,
+      });
+    }
+    if (hardestGame) {
+      funFacts.push({
+        id: 'hardest_game', emoji: '💀', label: 'Hardest game to predict',
+        value: `${hardestGame.name} — only ${hardestGame.accuracyPct}% got the outcome right`,
+      });
+    }
+    if (easiestGame && easiestGame.id !== hardestGame?.id) {
+      funFacts.push({
+        id: 'easiest_game', emoji: '🎁', label: 'Easiest game to predict',
+        value: `${easiestGame.name} — ${easiestGame.accuracyPct}% got the outcome right`,
+      });
+    }
+    if (bestScoringGame) {
+      funFacts.push({
+        id: 'best_scoring', emoji: '💰', label: 'Best scoring game',
+        value: `${bestScoringGame.name} — ${bestScoringGame.avgPts} avg pts per participant`,
+      });
+    }
+
+    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates, badges, funFacts });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build insights' });

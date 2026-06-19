@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { InsightsResponse, ParticipantInsight } from '../types';
 import { RankChart } from './RankChart';
 import { Badges } from './Badges';
+import { FunFacts } from './FunFacts';
 
 type AccuracySort = 'exact' | 'accuracy';
 
@@ -96,6 +97,7 @@ export function Insights({ data, loading }: Props) {
 
   return (
     <div>
+      <FunFacts facts={data.funFacts} />
       <Badges badges={data.badges} />
 
       <div style={{ marginBottom: 20 }}>
