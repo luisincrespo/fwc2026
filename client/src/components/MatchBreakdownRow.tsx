@@ -1,4 +1,4 @@
-import { Flag } from './Flag';
+import { Matchup } from './Matchup';
 
 interface Props {
   homeTeam: string;
@@ -24,8 +24,8 @@ export function MatchBreakdownRow({
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: '#94a3b8' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <Flag code={homeCode} size={16} /> {homeTeam} vs {awayTeam} <Flag code={awayCode} size={16} />
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Matchup homeTeam={homeTeam} awayTeam={awayTeam} homeCode={homeCode} awayCode={awayCode} />
           </span>
           <span style={{ width: 80, flexShrink: 0 }}>
             {scoreLabel}: <strong style={{ color: '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
