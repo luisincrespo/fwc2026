@@ -11,18 +11,19 @@ interface Props {
   predictedAway: number;
   points: number;
   scoreLabel?: string;
+  scoreHighlight?: string;
   colSpan?: number;
 }
 
 export function MatchBreakdownRow({
   homeTeam, awayTeam, homeCode, awayCode,
   homeGoals, awayGoals, predictedHome, predictedAway,
-  points, scoreLabel = 'Result', colSpan = 4,
+  points, scoreLabel = 'Result', scoreHighlight, colSpan = 4,
 }: Props) {
   const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : points > 0 ? '#94a3b8' : '#475569';
   const center = (
     <span style={{ color: '#64748b', fontWeight: 500 }}>
-      {scoreLabel}: <strong style={{ color: '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
+      {scoreLabel}: <strong style={{ color: scoreHighlight ?? '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
     </span>
   );
   return (

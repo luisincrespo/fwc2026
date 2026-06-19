@@ -46,7 +46,7 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
       </div>
       {isSimulating && (
         <>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#f59e0b', background: '#1c1400', border: '1px solid #78350f', borderRadius: 4, padding: '1px 6px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa', background: '#0c1a2e', border: '1px solid #1e3a5f', borderRadius: 4, padding: '1px 6px' }}>
             Simulating
           </span>
           <button
@@ -89,13 +89,13 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
           const center = (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <AdjustBtn onClick={() => onAdjust(key, hypoHome - 1, hypoAway)} disabled={hypoHome <= m.homeGoals}>−</AdjustBtn>
-              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#f59e0b' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
                 {hypoHome}
               </span>
               <AdjustBtn onClick={() => onAdjust(key, hypoHome + 1, hypoAway)}>+</AdjustBtn>
               <span style={{ color: '#475569', margin: '0 2px' }}>–</span>
               <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway - 1)} disabled={hypoAway <= m.awayGoals}>−</AdjustBtn>
-              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#f59e0b' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
                 {hypoAway}
               </span>
               <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway + 1)}>+</AdjustBtn>
@@ -109,7 +109,7 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
                 background: '#1e293b',
                 borderRadius: 8,
                 padding: '10px 16px',
-                borderLeft: `3px solid ${changed ? '#f59e0b' : '#22c55e'}`,
+                borderLeft: `3px solid ${changed ? '#60a5fa' : '#22c55e'}`,
                 fontSize: 14,
                 color: '#cbd5e1',
               }}

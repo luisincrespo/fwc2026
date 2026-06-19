@@ -100,9 +100,10 @@ export function App() {
       const hypoBreakdown = entry.liveBreakdown.map((bd) => {
         const key = `${bd.homeTeam}|${bd.awayTeam}`;
         const score = hypo[key] ?? { home: bd.liveHome, away: bd.liveAway };
+        const isHypothetical = score.home !== bd.liveHome || score.away !== bd.liveAway;
         const pts = calculatePoints({ home: bd.predictedHome, away: bd.predictedAway }, score, bd.stage, rules);
         hypoLivePoints += pts;
-        return { ...bd, liveHome: score.home, liveAway: score.away, points: pts };
+        return { ...bd, liveHome: score.home, liveAway: score.away, points: pts, isHypothetical };
       });
       return { ...entry, livePoints: hypoLivePoints, totalPoints: entry.officialPoints + hypoLivePoints, liveBreakdown: hypoBreakdown };
     });

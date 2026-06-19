@@ -22,7 +22,8 @@ function PredictionRow({ pred, colSpan }: { pred: LivePrediction; colSpan: numbe
       homeGoals={pred.liveHome} awayGoals={pred.liveAway}
       predictedHome={pred.predictedHome} predictedAway={pred.predictedAway}
       points={pred.points}
-      scoreLabel="Live"
+      scoreLabel={pred.isHypothetical ? 'Sim' : 'Live'}
+      scoreHighlight={pred.isHypothetical ? '#60a5fa' : undefined}
       colSpan={colSpan}
     />
   );

@@ -63,6 +63,7 @@ export interface LivePrediction {
   predictedAway: number;
   stage: 'group' | 'ko';
   points: number;
+  isHypothetical?: boolean;
 }
 
 export interface LeaderboardEntry {
