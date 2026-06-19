@@ -9,6 +9,7 @@ const PALETTE = [
   '#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6',
   '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#14b8a6',
   '#a855f7', '#0ea5e9', '#d946ef', '#f43f5e', '#e879f9',
+  '#fbbf24', '#34d399', '#60a5fa', '#f472b6', '#a78bfa',
 ];
 
 function fmtDate(iso: string) {
@@ -16,12 +17,11 @@ function fmtDate(iso: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-interface Props {
-  data: InsightsResponse;
-}
-
-export function RankChart({ data }: Props) {
+export function RankChart({ data }: { data: InsightsResponse }) {
   const [highlighted, setHighlighted] = useState<number | null>(null);
+  const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   const { gameDates, participants } = data;
 
   if (gameDates.length < 2) {
@@ -33,32 +33,51 @@ export function RankChart({ data }: Props) {
   }
 
   const totalParticipants = participants.length;
+  const query = search.trim().toLowerCase();
 
-  // Top 15 by current rank get a color; rest drawn as faint background lines
   const top15 = [...participants].sort((a, b) => a.currentRank - b.currentRank).slice(0, 15);
   const top15Ids = new Set(top15.map((p) => p.id));
-  const colorMap = new Map(top15.map((p, i) => [p.id, PALETTE[i % PALETTE.length]]));
 
-  // Build chart data: negate ranks so Recharts puts #1 at the top naturally
+  // Non-top-15 players that are persistently selected OR match current search
+  const extraActive = participants.filter(
+    (p) => !top15Ids.has(p.id) && (selectedIds.has(p.id) || (query.length >= 1 && p.name.toLowerCase().includes(query))),
+  );
+
+  const colorMap = new Map<number, string>();
+  top15.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
+  extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[15 + (i % 5)]));
+
+  const activeIds = new Set([...top15Ids, ...extraActive.map((p) => p.id)]);
+
+  const toggleSelect = (id: number) => {
+    if (top15Ids.has(id)) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const chartData = gameDates.map((date, i) => {
     const obj: Record<string, string | number> = { date: fmtDate(date) };
     for (const p of participants) obj[`p${p.id}`] = -p.ranks[i];
     return obj;
   });
 
-  // Custom tooltip: show top 10 ranked participants at that date
+  const filteredList = (
+    query.length >= 1 ? participants.filter((p) => p.name.toLowerCase().includes(query)) : participants
+  ).sort((a, b) => a.currentRank - b.currentRank);
+
   const CustomTooltip = ({ active, label, payload }: {
-    active?: boolean;
-    label?: string;
-    payload?: { dataKey: string; value: number }[];
+    active?: boolean; label?: string; payload?: { dataKey: string; value: number }[];
   }) => {
     if (!active || !payload || !label) return null;
-
     const atDate = payload
       .map((pl) => {
         const id = Number(pl.dataKey.slice(1));
         const p = participants.find((x) => x.id === id);
-        return p ? { name: p.name, rank: -pl.value, id } : null;  // un-negate for display
+        return p ? { name: p.name, rank: -pl.value, id } : null;
       })
       .filter(Boolean)
       .sort((a, b) => a!.rank - b!.rank) as { name: string; rank: number; id: number }[];
@@ -71,8 +90,8 @@ export function RankChart({ data }: Props) {
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px', fontSize: 12, minWidth: 180 }}>
         <div style={{ color: '#64748b', marginBottom: 6, fontWeight: 600 }}>{label}</div>
         {shown.map((x) => (
-          <div key={x.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, color: colorMap.get(x.id) ?? '#64748b', padding: '2px 0' }}>
-            <span>#{x.rank} {x.name}</span>
+          <div key={x.id} style={{ color: colorMap.get(x.id) ?? '#64748b', padding: '2px 0' }}>
+            #{x.rank} {x.name}
           </div>
         ))}
         {highlighted === null && atDate.length > 10 && (
@@ -84,14 +103,9 @@ export function RankChart({ data }: Props) {
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={300}>
         <LineChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-          <XAxis
-            dataKey="date"
-            tick={{ fill: '#475569', fontSize: 11 }}
-            axisLine={{ stroke: '#1e293b' }}
-            tickLine={false}
-          />
+          <XAxis dataKey="date" tick={{ fill: '#475569', fontSize: 11 }} axisLine={{ stroke: '#1e293b' }} tickLine={false} />
           <YAxis
             domain={[-totalParticipants, -1]}
             ticks={[-1, -10, -20, -40, -60, -totalParticipants]}
@@ -103,23 +117,11 @@ export function RankChart({ data }: Props) {
           <Tooltip content={<CustomTooltip />} />
           <ReferenceLine y={-1} stroke="#1e293b" strokeDasharray="3 3" />
 
-          {/* Background lines for participants outside top 15 */}
-          {participants
-            .filter((p) => !top15Ids.has(p.id))
-            .map((p) => (
-              <Line
-                key={p.id}
-                dataKey={`p${p.id}`}
-                stroke="#1e293b"
-                strokeWidth={1}
-                dot={false}
-                activeDot={false}
-                isAnimationActive={false}
-              />
-            ))}
+          {participants.filter((p) => !activeIds.has(p.id)).map((p) => (
+            <Line key={p.id} dataKey={`p${p.id}`} stroke="#1e293b" strokeWidth={1} dot={false} activeDot={false} isAnimationActive={false} />
+          ))}
 
-          {/* Highlighted top-15 lines */}
-          {top15.map((p) => {
+          {[...top15, ...extraActive].map((p) => {
             const color = colorMap.get(p.id)!;
             const isHighlighted = highlighted === p.id;
             const isDimmed = highlighted !== null && !isHighlighted;
@@ -129,7 +131,7 @@ export function RankChart({ data }: Props) {
                 dataKey={`p${p.id}`}
                 stroke={color}
                 strokeWidth={isHighlighted ? 3 : 1.5}
-                strokeOpacity={isDimmed ? 0.2 : 1}
+                strokeOpacity={isDimmed ? 0.15 : 1}
                 dot={false}
                 activeDot={{ r: 3, fill: color, stroke: 'none' }}
                 isAnimationActive={false}
@@ -141,23 +143,56 @@ export function RankChart({ data }: Props) {
         </LineChart>
       </ResponsiveContainer>
 
-      {/* Legend */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: 10, paddingLeft: 8 }}>
-        {top15.map((p) => (
-          <span
-            key={p.id}
-            style={{
-              fontSize: 11,
-              color: highlighted === null || highlighted === p.id ? colorMap.get(p.id) : '#334155',
-              cursor: 'default',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={() => setHighlighted(p.id)}
-            onMouseLeave={() => setHighlighted(null)}
-          >
-            #{p.currentRank} {p.name}
-          </span>
-        ))}
+      {/* Search */}
+      <div style={{ marginTop: 12, paddingLeft: 8 }}>
+        <input
+          type="text"
+          placeholder="Search players…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            background: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: 6,
+            color: '#e2e8f0',
+            fontSize: 12,
+            padding: '6px 10px',
+            outline: 'none',
+            marginBottom: 8,
+          }}
+        />
+
+        {/* Scrollable player chip list */}
+        <div style={{ maxHeight: 110, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start' }}>
+          {filteredList.map((p) => {
+            const color = colorMap.get(p.id);
+            const isActive = activeIds.has(p.id);
+            const isTop15 = top15Ids.has(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => toggleSelect(p.id)}
+                onMouseEnter={() => setHighlighted(p.id)}
+                onMouseLeave={() => setHighlighted(null)}
+                style={{
+                  background: isActive ? '#1e293b' : 'none',
+                  border: `1px solid ${isActive ? (color ?? '#334155') : '#1e293b'}`,
+                  borderRadius: 20,
+                  color: color ?? '#334155',
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  cursor: isTop15 ? 'default' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: highlighted !== null && highlighted !== p.id ? 0.4 : 1,
+                }}
+              >
+                #{p.currentRank} {p.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
