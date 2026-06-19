@@ -50,14 +50,15 @@ export function RankChart({ data }: { data: InsightsResponse }) {
   top10.forEach((p, i) => colorMap.set(p.id, PALETTE[i]));
   extraActive.forEach((p, i) => colorMap.set(p.id, PALETTE[10 + (i % 10)]));
 
-  const reset = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); };
+  const resetToTop10 = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set()); };
+  const clearAll = () => { setPinnedIds(new Set()); setUnpinnedTop15Ids(new Set(top10.map((p) => p.id))); };
 
   const handleChipClick = (id: number) => {
     const isActive = activeIds.has(id);
 
     if (isActive && activeIds.size === 1) {
       // Only active player clicked → reset to defaults
-      reset();
+      resetToTop10();
     } else if (isActive) {
       // Active player with others → solo this one
       if (top10Ids.has(id)) {
@@ -177,19 +178,16 @@ export function RankChart({ data }: { data: InsightsResponse }) {
             }}
           />
           <button
-            onClick={reset}
-            style={{
-              background: 'none',
-              border: '1px solid #334155',
-              borderRadius: 6,
-              color: '#64748b',
-              fontSize: 12,
-              padding: '6px 10px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
+            onClick={clearAll}
+            style={{ background: 'none', border: '1px solid #334155', borderRadius: 6, color: '#64748b', fontSize: 12, padding: '6px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            Reset
+            Clear
+          </button>
+          <button
+            onClick={resetToTop10}
+            style={{ background: 'none', border: '1px solid #334155', borderRadius: 6, color: '#64748b', fontSize: 12, padding: '6px 10px', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Top 10
           </button>
         </div>
 
