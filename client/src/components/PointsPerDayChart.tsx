@@ -97,7 +97,7 @@ export function PointsPerDayChart({ data }: { data: InsightsResponse }) {
                 {selected.map((p) => (
                   <Bar key={p.id} dataKey={`p${p.id}`} fill={colorMap.get(p.id)!} radius={[3, 3, 0, 0]} isAnimationActive={false} />
                 ))}
-                <Line dataKey="fieldAvg" stroke="#1e293b" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line dataKey="fieldAvg" stroke="#475569" strokeWidth={1.5} strokeDasharray="4 2" dot={false} isAnimationActive={false} />
               </>
           }
         </ComposedChart>
