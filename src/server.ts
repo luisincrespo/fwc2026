@@ -585,34 +585,33 @@ app.get('/api/insights', async (req, res) => {
       currentRankMap.set(currentSorted[i].id, rank);
     }
 
-    // Find earliest game date to use as the trajectory reference point
-    let firstGameDate: string | undefined;
+    // Collect all distinct game dates from breakdown entries
+    const allDateSet = new Set<string>();
     for (const p of participants) {
-      for (const g of p.breakdown) {
-        if (!firstGameDate || g.scheduled_at < firstGameDate) firstGameDate = g.scheduled_at.slice(0, 10);
-      }
+      for (const g of p.breakdown) allDateSet.add(g.scheduled_at.slice(0, 10));
     }
+    const gameDates = [...allDateSet].sort();
 
-    // Rank after the first game day (used for trajectory)
-    let firstDayRankMap: Map<number, number> | undefined;
-    if (firstGameDate) {
-      const cutoff = new Date(`${firstGameDate}T23:59:59.999Z`);
-      const day1Points = participants.map((p) => ({
+    // For each game date, compute rank at the end of that day (cumulative)
+    function rankAtCutoff(cutoffDate: string): Map<number, number> {
+      const cutoff = new Date(`${cutoffDate}T23:59:59.999Z`);
+      const pts = participants.map((p) => ({
         id: p.id,
         points: p.breakdown
           .filter((g) => new Date(g.scheduled_at) <= cutoff)
           .reduce((sum, g) => sum + g.points, 0),
       }));
-      const day1Sorted = [...day1Points].sort((a, b) => b.points - a.points);
-      firstDayRankMap = new Map();
-      for (let i = 0; i < day1Sorted.length; i++) {
-        const prev = day1Sorted[i - 1];
-        const rank = prev && day1Sorted[i].points === prev.points
-          ? firstDayRankMap.get(prev.id)!
-          : i + 1;
-        firstDayRankMap.set(day1Sorted[i].id, rank);
+      const sorted = [...pts].sort((a, b) => b.points - a.points);
+      const map = new Map<number, number>();
+      for (let i = 0; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const rank = prev && sorted[i].points === prev.points ? map.get(prev.id)! : i + 1;
+        map.set(sorted[i].id, rank);
       }
+      return map;
     }
+
+    const rankMaps = gameDates.map(rankAtCutoff);
 
     const result = participants.map((p) => {
       const bd = p.breakdown;
@@ -627,13 +626,10 @@ app.get('/api/insights', async (req, res) => {
       ];
       const draws = allPreds.filter((x) => x.h === x.a).length;
 
-      const currentRank = currentRankMap.get(p.id) ?? 0;
-      const rankOnFirstDay = firstDayRankMap?.get(p.id);
-
       return {
         id: p.id,
         name: p.name,
-        currentRank,
+        currentRank: currentRankMap.get(p.id) ?? 0,
         gamesPlayed,
         exact,
         correct,
@@ -643,12 +639,11 @@ app.get('/api/insights', async (req, res) => {
         drawPredictions: draws,
         totalPredictions: allPreds.length,
         drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
-        rankOnFirstDay,
-        rankChange: rankOnFirstDay !== undefined ? rankOnFirstDay - currentRank : undefined,
+        ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
       };
     });
 
-    res.json({ updatedAt: new Date().toISOString(), participants: result, firstGameDate });
+    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build insights' });

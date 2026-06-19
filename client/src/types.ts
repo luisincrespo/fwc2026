@@ -136,12 +136,11 @@ export interface ParticipantInsight {
   drawPredictions: number;
   totalPredictions: number;
   drawPct: number;
-  rankOnFirstDay?: number;
-  rankChange?: number;
+  ranks: number[];  // rank at end of each game date (parallel to InsightsResponse.gameDates)
 }
 
 export interface InsightsResponse {
   updatedAt: string;
   participants: ParticipantInsight[];
-  firstGameDate?: string;
+  gameDates: string[];
 }

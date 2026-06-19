@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { InsightsResponse, ParticipantInsight } from '../types';
+import { RankChart } from './RankChart';
 
 type AccuracySort = 'exact' | 'accuracy';
 
@@ -78,48 +79,6 @@ function AccuracyTable({ participants, sort }: { participants: ParticipantInsigh
   );
 }
 
-function TrajectorySection({ participants, firstGameDate }: { participants: ParticipantInsight[]; firstGameDate?: string }) {
-  const withTrajectory = participants.filter((p) => p.rankChange !== undefined && p.rankOnFirstDay !== undefined);
-  if (withTrajectory.length === 0) return null;
-
-  const climbers = [...withTrajectory].sort((a, b) => (b.rankChange ?? 0) - (a.rankChange ?? 0)).slice(0, 6);
-  const fallers = [...withTrajectory].sort((a, b) => (a.rankChange ?? 0) - (b.rankChange ?? 0)).slice(0, 6);
-
-  const dateLabel = firstGameDate
-    ? new Date(`${firstGameDate}T12:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : 'Day 1';
-
-  const row = (p: ParticipantInsight, dir: 'up' | 'down') => {
-    const delta = p.rankChange ?? 0;
-    const color = dir === 'up' ? '#22c55e' : '#ef4444';
-    const arrow = dir === 'up' ? '↑' : '↓';
-    return (
-      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderTop: '1px solid #0f172a' }}>
-        <span style={{ color: '#e2e8f0', fontSize: 13 }}>{p.name}</span>
-        <span style={{ fontSize: 12, color, fontWeight: 600, whiteSpace: 'nowrap' }}>
-          #{p.rankOnFirstDay} {arrow} #{p.currentRank}
-          <span style={{ color: '#475569', fontWeight: 400 }}> ({arrow}{Math.abs(delta)})</span>
-        </span>
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={SECTION_LABEL}>Tournament trajectory · since {dateLabel}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={CARD}>
-          <div style={{ fontSize: 11, color: '#22c55e', fontWeight: 600, marginBottom: 6 }}>Biggest climbers</div>
-          {climbers.filter((p) => (p.rankChange ?? 0) > 0).map((p) => row(p, 'up'))}
-        </div>
-        <div style={CARD}>
-          <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 600, marginBottom: 6 }}>Biggest drops</div>
-          {fallers.filter((p) => (p.rankChange ?? 0) < 0).map((p) => row(p, 'down'))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 interface Props {
   data: InsightsResponse | null;
@@ -136,7 +95,12 @@ export function Insights({ data, loading }: Props) {
 
   return (
     <div>
-      <TrajectorySection participants={data.participants} firstGameDate={data.firstGameDate} />
+      <div style={{ marginBottom: 20 }}>
+        <div style={SECTION_LABEL}>Rank trajectory</div>
+        <div style={{ ...CARD, paddingBottom: 14 }}>
+          <RankChart data={data} />
+        </div>
+      </div>
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
