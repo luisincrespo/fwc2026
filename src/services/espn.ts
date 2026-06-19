@@ -14,6 +14,7 @@ export interface EspnGoal {
 export interface EspnMatch {
   kickoffUtc: string;
   espnHomeTeam: string;
+  espnAwayTeam: string;
   isLive: boolean;
   minute: string | null;
   homeScore: number | null;
@@ -70,6 +71,7 @@ function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
     matches.push({
       kickoffUtc: event['date'] as string,
       espnHomeTeam: (home['team'] as Record<string, string>)['displayName'] ?? '',
+      espnAwayTeam: (away['team'] as Record<string, string>)['displayName'] ?? '',
       isLive: state === 'in',
       minute: state === 'post' ? 'FT'
         : statusName === 'STATUS_HALFTIME' ? 'HT'
