@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cache from '../cache.js';
 
-const TWO_MIN = 2 * 60 * 1000;
+const ONE_MIN = 60 * 1000;
 
 export interface EspnGoal {
   team: 'home' | 'away';
@@ -115,6 +115,6 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
     }
   }
 
-  cache.set(cacheKey, matches, TWO_MIN);
+  cache.set(cacheKey, matches, ONE_MIN);
   return matches;
 }

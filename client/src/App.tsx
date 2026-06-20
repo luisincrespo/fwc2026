@@ -13,7 +13,8 @@ import { UpcomingMatches } from './components/UpcomingMatches';
 import { FinishedMatches } from './components/FinishedMatches';
 import { Insights } from './components/Insights';
 
-const POLL_INTERVAL = 5 * 60 * 1000;
+const POLL_INTERVAL_IDLE = 5 * 60 * 1000;
+const POLL_INTERVAL_LIVE = 60 * 1000;
 
 type Tab = 'live' | 'today' | 'insights';
 
@@ -38,6 +39,7 @@ export function App() {
   const insightsFetched = useRef(false);
   const prevRanks = useRef<Map<number, number>>(new Map());
   const [hypo, setHypo] = useState<HypoScores>({});
+  const hasLive = (data?.liveMatches.length ?? 0) > 0;
 
   const load = useCallback(async (bust = false) => {
     try {
@@ -68,6 +70,9 @@ export function App() {
 
       if (dailyFetched.current) {
         fetchDailyRecap(bust).then(setDailyData);
+      }
+      if (insightsFetched.current) {
+        fetchInsights(bust).then(setInsightsData);
       }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
@@ -125,15 +130,17 @@ export function App() {
   }, [data, hypo]);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, POLL_INTERVAL);
+    const interval = hasLive ? POLL_INTERVAL_LIVE : POLL_INTERVAL_IDLE;
+    const id = setInterval(load, interval);
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [load]);
+  }, [load, hasLive]);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (activeTab === 'today' && !dailyFetched.current) {
