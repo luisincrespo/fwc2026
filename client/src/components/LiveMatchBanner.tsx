@@ -86,22 +86,6 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
           const hypoAway = hypo[key]?.away ?? m.awayGoals;
           const changed = hypoHome !== m.homeGoals || hypoAway !== m.awayGoals;
 
-          const center = (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AdjustBtn onClick={() => onAdjust(key, hypoHome - 1, hypoAway)} disabled={hypoHome <= m.homeGoals}>−</AdjustBtn>
-              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
-                {hypoHome}
-              </span>
-              <AdjustBtn onClick={() => onAdjust(key, hypoHome + 1, hypoAway)}>+</AdjustBtn>
-              <span style={{ color: '#475569', margin: '0 2px' }}>–</span>
-              <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway - 1)} disabled={hypoAway <= m.awayGoals}>−</AdjustBtn>
-              <span style={{ fontWeight: 700, fontSize: 16, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 12, textAlign: 'center' }}>
-                {hypoAway}
-              </span>
-              <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway + 1)}>+</AdjustBtn>
-            </div>
-          );
-
           return (
             <div
               key={i}
@@ -115,18 +99,30 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
               }}
             >
               {m.venue && <VenueLabel venue={m.venue} />}
-              <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                <Matchup
+                  variant="inline"
+                  homeTeam={m.homeTeam} awayTeam={m.awayTeam}
+                  homeCode={m.homeCode} awayCode={m.awayCode}
+                />
                 {m.minute && (
-                  <span className="live-minute" style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#22c55e' }}>
+                  <span className="live-minute" style={{ fontSize: 11, color: '#22c55e' }}>
                     {m.minute}
                   </span>
                 )}
-                <Matchup
-                  variant="card"
-                  homeTeam={m.homeTeam} awayTeam={m.awayTeam}
-                  homeCode={m.homeCode} awayCode={m.awayCode}
-                  center={center}
-                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <AdjustBtn onClick={() => onAdjust(key, hypoHome - 1, hypoAway)} disabled={hypoHome <= m.homeGoals}>−</AdjustBtn>
+                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
+                  {hypoHome}
+                </span>
+                <AdjustBtn onClick={() => onAdjust(key, hypoHome + 1, hypoAway)}>+</AdjustBtn>
+                <span style={{ color: '#475569', margin: '0 6px', fontSize: 18 }}>–</span>
+                <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway - 1)} disabled={hypoAway <= m.awayGoals}>−</AdjustBtn>
+                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
+                  {hypoAway}
+                </span>
+                <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway + 1)}>+</AdjustBtn>
               </div>
               {m.goals.length > 0 && <GoalList goals={m.goals} color="#86efac" />}
               {m.performance && m.performance.total > 0 && (
