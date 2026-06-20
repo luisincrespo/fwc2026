@@ -129,6 +129,32 @@ export function App() {
       .sort((a, b) => a.rank - b.rank);
   }, [data, hypo]);
 
+  const hypoLiveMatches = useMemo(() => {
+    if (!data || Object.keys(hypo).length === 0) return data?.liveMatches ?? [];
+
+    const perfByKey = new Map<string, { exact: { name: string; predicted: string }[]; correct: { name: string; predicted: string }[]; miss: { name: string; predicted: string }[]; total: number }>();
+    for (const m of data.liveMatches) {
+      perfByKey.set(`${m.homeTeam}|${m.awayTeam}`, { exact: [], correct: [], miss: [], total: 0 });
+    }
+    for (const entry of hypoEntries) {
+      for (const bd of entry.liveBreakdown) {
+        const perf = perfByKey.get(`${bd.homeTeam}|${bd.awayTeam}`);
+        if (!perf) continue;
+        perf.total++;
+        const participant = { name: entry.name, predicted: `${bd.predictedHome}-${bd.predictedAway}` };
+        if (bd.points >= 11) perf.exact.push(participant);
+        else if (bd.points >= 3) perf.correct.push(participant);
+        else perf.miss.push(participant);
+      }
+    }
+
+    return data.liveMatches.map((m) => {
+      const key = `${m.homeTeam}|${m.awayTeam}`;
+      if (!hypo[key]) return m;
+      return { ...m, performance: perfByKey.get(key) };
+    });
+  }, [data, hypo, hypoEntries]);
+
   useEffect(() => {
     const interval = hasLive ? POLL_INTERVAL_LIVE : POLL_INTERVAL_IDLE;
     const id = setInterval(load, interval);
@@ -234,7 +260,7 @@ export function App() {
       {data && activeTab === 'live' && (
         <>
           <UpcomingMatches matches={upcoming} />
-          <LiveMatchBanner matches={data.liveMatches} hypo={hypo} onAdjust={adjustHypo} onReset={resetHypo} />
+          <LiveMatchBanner matches={hypoLiveMatches} hypo={hypo} onAdjust={adjustHypo} onReset={resetHypo} />
           {data.liveMatches.length > 0 && (
             <>
               <p style={{ fontSize: 12, color: '#475569', textAlign: 'right', marginBottom: 8 }}>
