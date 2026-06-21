@@ -1,4 +1,5 @@
 import type { LeaderboardEntry } from '../types';
+import { COLOR_CORRECT_LIVE, COLOR_RANK_DOWN_SOFT } from '../lib/colors';
 
 interface Props {
   entries: LeaderboardEntry[];
@@ -42,10 +43,10 @@ export function BiggestMovers({ entries }: Props) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
       {climbers.length > 0 && (
-        <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''}`} color="#4ade80" entries={climbers} />
+        <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''}`} color={COLOR_CORRECT_LIVE} entries={climbers} />
       )}
       {droppers.length > 0 && (
-        <Card label={`▼ Biggest drop${droppers.length > 1 ? 's' : ''}`} color="#f87171" entries={droppers} />
+        <Card label={`▼ Biggest drop${droppers.length > 1 ? 's' : ''}`} color={COLOR_RANK_DOWN_SOFT} entries={droppers} />
       )}
     </div>
   );

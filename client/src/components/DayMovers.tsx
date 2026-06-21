@@ -1,4 +1,5 @@
 import type { DailyEntry } from '../types';
+import { COLOR_CORRECT_LIVE, COLOR_RANK_DOWN_SOFT } from '../lib/colors';
 
 interface Props {
   entries: DailyEntry[];
@@ -44,10 +45,10 @@ export function DayMovers({ entries }: Props) {
   return (
     <>
       {climbers.length > 0 && (
-        <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''} today`} color="#4ade80" entries={climbers} />
+        <Card label={`▲ Biggest riser${climbers.length > 1 ? 's' : ''} today`} color={COLOR_CORRECT_LIVE} entries={climbers} />
       )}
       {droppers.length > 0 && (
-        <Card label={`▼ Biggest drop${droppers.length > 1 ? 's' : ''} today`} color="#f87171" entries={droppers} />
+        <Card label={`▼ Biggest drop${droppers.length > 1 ? 's' : ''} today`} color={COLOR_RANK_DOWN_SOFT} entries={droppers} />
       )}
     </>
   );

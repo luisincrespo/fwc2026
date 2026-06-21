@@ -1,4 +1,5 @@
 import { Matchup } from './Matchup';
+import { COLOR_EXACT, COLOR_CORRECT, COLOR_MARGIN, COLOR_MISS } from '../lib/colors';
 
 interface Props {
   homeTeam: string;
@@ -20,7 +21,7 @@ export function MatchBreakdownRow({
   homeGoals, awayGoals, predictedHome, predictedAway,
   points, scoreLabel = 'Result', scoreHighlight, colSpan = 4,
 }: Props) {
-  const tierColor = points >= 11 ? '#f59e0b' : points >= 3 ? '#22c55e' : points > 0 ? '#94a3b8' : '#475569';
+  const tierColor = points >= 11 ? COLOR_EXACT : points >= 3 ? COLOR_CORRECT : points > 0 ? COLOR_MARGIN : COLOR_MISS;
   const center = (
     <span style={{ color: '#64748b', fontWeight: 500 }}>
       {scoreLabel}: <strong style={{ color: scoreHighlight ?? '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>

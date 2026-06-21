@@ -1,6 +1,7 @@
 import type { DailyRecapResponse, DailyEntry, DailyBreakdown } from '../types';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
 import { MatchBreakdownRow } from './MatchBreakdownRow';
+import { COLOR_RANK_1, COLOR_RANK_2, COLOR_RANK_3, COLOR_CORRECT_LIVE, COLOR_MISS, COLOR_RANK_DOWN_SOFT } from '../lib/colors';
 
 interface Props {
   data: DailyRecapResponse | null;
@@ -28,7 +29,7 @@ const columns: ColumnDef<DailyEntry>[] = [
     width: 48,
     tdStyle: (e) => ({
       fontWeight: e.rank <= 3 ? 700 : 400,
-      color: e.rank === 1 ? '#fbbf24' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : '#e2e8f0',
+      color: e.rank === 1 ? COLOR_RANK_1 : e.rank === 2 ? COLOR_RANK_2 : e.rank === 3 ? COLOR_RANK_3 : '#e2e8f0',
     }),
     render: (e) => e.rank,
   },
@@ -47,17 +48,17 @@ const columns: ColumnDef<DailyEntry>[] = [
   },
   {
     header: 'Pts today',
-    tdStyle: (e) => ({ color: e.pointsToday > 0 ? '#4ade80' : '#475569', fontWeight: e.pointsToday > 0 ? 700 : 400 }),
+    tdStyle: (e) => ({ color: e.pointsToday > 0 ? COLOR_CORRECT_LIVE : COLOR_MISS, fontWeight: e.pointsToday > 0 ? 700 : 400 }),
     render: (e) => e.pointsToday > 0 ? `+${e.pointsToday}` : '—',
   },
   {
     header: 'Move',
     render: (e) => e.dailyDelta > 0 ? (
-      <span style={{ color: '#4ade80', fontWeight: 700 }}>▲{e.dailyDelta}</span>
+      <span style={{ color: COLOR_CORRECT_LIVE, fontWeight: 700 }}>▲{e.dailyDelta}</span>
     ) : e.dailyDelta < 0 ? (
-      <span style={{ color: '#f87171', fontWeight: 700 }}>▼{Math.abs(e.dailyDelta)}</span>
+      <span style={{ color: COLOR_RANK_DOWN_SOFT, fontWeight: 700 }}>▼{Math.abs(e.dailyDelta)}</span>
     ) : (
-      <span style={{ color: '#475569' }}>—</span>
+      <span style={{ color: COLOR_MISS }}>—</span>
     ),
   },
 ];

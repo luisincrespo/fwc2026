@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { COLOR_EXACT, COLOR_CORRECT, COLOR_MISS, COLOR_MARGIN } from '../lib/colors';
 import type { InsightsResponse, ParticipantInsight } from '../types';
 import { RankChart } from './RankChart';
 import { Badges } from './Badges';
@@ -70,10 +71,10 @@ function AccuracyTable({ participants, sort }: { participants: ParticipantInsigh
             >
               <td style={{ padding: '6px 8px 6px 0', color: '#475569', width: 24 }}>{i + 1}</td>
               <td style={{ padding: '6px 8px 6px 0', color: '#e2e8f0' }}>{p.name}</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', color: '#f59e0b', fontWeight: 600 }}>{p.exact}</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', color: '#22c55e' }}>{p.correct}</td>
-              <td style={{ padding: '6px 8px', textAlign: 'center', color: '#475569' }}>{p.miss}</td>
-              <td style={{ padding: '6px 0', textAlign: 'center', color: '#94a3b8' }}>{p.accuracyPct}%</td>
+              <td style={{ padding: '6px 8px', textAlign: 'center', color: COLOR_EXACT, fontWeight: 600 }}>{p.exact}</td>
+              <td style={{ padding: '6px 8px', textAlign: 'center', color: COLOR_CORRECT }}>{p.correct}</td>
+              <td style={{ padding: '6px 8px', textAlign: 'center', color: COLOR_MISS }}>{p.miss}</td>
+              <td style={{ padding: '6px 0', textAlign: 'center', color: COLOR_MARGIN }}>{p.accuracyPct}%</td>
             </tr>
           ))}
         </tbody>

@@ -3,6 +3,7 @@ import { Matchup } from './Matchup';
 import { PerformanceBar } from './PerformanceBar';
 import { VenueLabel } from './VenueLabel';
 import { GoalList } from './GoalList';
+import { COLOR_SIMULATION, COLOR_CORRECT } from '../lib/colors';
 
 export type HypoScores = Record<string, { home: number; away: number }>;
 
@@ -46,7 +47,7 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
       </div>
       {isSimulating && (
         <>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa', background: '#0c1a2e', border: '1px solid #1e3a5f', borderRadius: 4, padding: '1px 6px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: COLOR_SIMULATION, background: '#0c1a2e', border: '1px solid #1e3a5f', borderRadius: 4, padding: '1px 6px' }}>
             Simulating
           </span>
           <button
@@ -93,7 +94,7 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
                 background: '#1e293b',
                 borderRadius: 8,
                 padding: '10px 16px',
-                borderLeft: `3px solid ${changed ? '#60a5fa' : '#22c55e'}`,
+                borderLeft: `3px solid ${changed ? COLOR_SIMULATION : COLOR_CORRECT}`,
                 fontSize: 14,
                 color: '#cbd5e1',
               }}
@@ -106,20 +107,20 @@ export function LiveMatchBanner({ matches, hypo, onAdjust, onReset }: Props) {
                   homeCode={m.homeCode} awayCode={m.awayCode}
                 />
                 {m.minute && (
-                  <span className="live-minute" style={{ fontSize: 11, color: '#22c55e' }}>
+                  <span className="live-minute" style={{ fontSize: 11, color: COLOR_CORRECT }}>
                     {m.minute}
                   </span>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                 <AdjustBtn onClick={() => onAdjust(key, hypoHome - 1, hypoAway)} disabled={hypoHome <= m.homeGoals}>−</AdjustBtn>
-                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? COLOR_SIMULATION : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
                   {hypoHome}
                 </span>
                 <AdjustBtn onClick={() => onAdjust(key, hypoHome + 1, hypoAway)}>+</AdjustBtn>
                 <span style={{ color: '#475569', margin: '0 6px', fontSize: 18 }}>–</span>
                 <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway - 1)} disabled={hypoAway <= m.awayGoals}>−</AdjustBtn>
-                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? '#60a5fa' : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
+                <span style={{ fontWeight: 700, fontSize: 20, color: changed ? COLOR_SIMULATION : '#f1f5f9', letterSpacing: 2, minWidth: 16, textAlign: 'center' }}>
                   {hypoAway}
                 </span>
                 <AdjustBtn onClick={() => onAdjust(key, hypoHome, hypoAway + 1)}>+</AdjustBtn>

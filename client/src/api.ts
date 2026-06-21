@@ -46,6 +46,17 @@ export async function fetchParticipantUpcoming(participantId: number): Promise<U
   return data.predictions;
 }
 
+export async function fetchAltDailyRecap(bust = false): Promise<DailyRecapResponse> {
+  const { from, to } = todayRange();
+  const params = new URLSearchParams({ from, to });
+  if (bust) params.set('bust', 'true');
+  const mock = new URLSearchParams(window.location.search).get('mock');
+  if (mock === 'true') params.set('mock', 'true');
+  const res = await fetch(`/api/alt-daily-recap?${params}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
 export async function fetchAltLeaderboard(bust = false): Promise<LiveLeaderboardResponse> {
   const mock = new URLSearchParams(window.location.search).get('mock');
   const params = new URLSearchParams();

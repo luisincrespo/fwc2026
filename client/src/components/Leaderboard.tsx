@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { COLOR_RANK_1, COLOR_RANK_2, COLOR_RANK_3, COLOR_CORRECT_LIVE, COLOR_SIMULATION, COLOR_MISS } from '../lib/colors';
 import type { LeaderboardEntry, LivePrediction, ScheduledMatch, UpcomingPrediction } from '../types';
 import { fetchParticipantUpcoming } from '../api';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
@@ -23,7 +24,7 @@ function PredictionRow({ pred, colSpan }: { pred: LivePrediction; colSpan: numbe
       predictedHome={pred.predictedHome} predictedAway={pred.predictedAway}
       points={pred.points}
       scoreLabel={pred.isHypothetical ? 'Sim' : 'Live'}
-      scoreHighlight={pred.isHypothetical ? '#60a5fa' : undefined}
+      scoreHighlight={pred.isHypothetical ? COLOR_SIMULATION : undefined}
       colSpan={colSpan}
     />
   );
@@ -98,7 +99,7 @@ export function Leaderboard({ entries, hasLive, flashMap, upcoming }: Props) {
     width: 48,
     tdStyle: (e) => ({
       fontWeight: e.rank <= 3 ? 700 : 400,
-      color: e.rank === 1 ? '#fbbf24' : e.rank === 2 ? '#94a3b8' : e.rank === 3 ? '#cd7f32' : '#e2e8f0',
+      color: e.rank === 1 ? COLOR_RANK_1 : e.rank === 2 ? COLOR_RANK_2 : e.rank === 3 ? COLOR_RANK_3 : '#e2e8f0',
     }),
     render: (e) => e.rank,
   };
@@ -124,8 +125,8 @@ export function Leaderboard({ entries, hasLive, flashMap, upcoming }: Props) {
   const liveColumns: ColumnDef<LeaderboardEntry>[] = hasLive ? [
     {
       header: 'Live +',
-      headerStyle: { color: '#4ade80' },
-      tdStyle: (e) => ({ color: e.livePoints > 0 ? '#4ade80' : '#475569', fontWeight: e.livePoints > 0 ? 700 : 400 }),
+      headerStyle: { color: COLOR_CORRECT_LIVE },
+      tdStyle: (e) => ({ color: e.livePoints > 0 ? COLOR_CORRECT_LIVE : COLOR_MISS, fontWeight: e.livePoints > 0 ? 700 : 400 }),
       render: (e) => e.livePoints > 0 ? `+${e.livePoints}` : '—',
     },
     {

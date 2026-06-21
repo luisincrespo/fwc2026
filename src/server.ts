@@ -149,6 +149,7 @@ app.get('/api/leaderboard', async (req, res) => {
           officialPoints: p.total_points,
           livePoints: 0,
           totalPoints: p.total_points,
+          liveBreakdown: [],
         })),
       });
     }
@@ -913,6 +914,127 @@ app.get('/api/insights', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build insights' });
+  }
+});
+
+app.get('/api/alt-daily-recap', async (req, res) => {
+  try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
+    const isMock = req.query['mock'] === 'true';
+    const [{ participants, rules }, allGames, espnMatches] = await Promise.all([
+      getLeaderboardWithBreakdown(),
+      getGames(),
+      isMock ? getEspnMatches() : Promise.resolve([] as Awaited<ReturnType<typeof getEspnMatches>>),
+    ]);
+
+    const stageById = new Map(allGames.map((g) => [g.game_id, g.stage === 'group' ? 'group' : 'ko'] as [number, 'group' | 'ko']));
+
+    let from: Date, to: Date;
+    if (isMock) {
+      const nextDate = allGames
+        .filter((g) => !g.is_completed && new Date(g.scheduled_at) > new Date())
+        .map((g) => g.scheduled_at.slice(0, 10)).sort()[0];
+      from = nextDate ? new Date(`${nextDate}T00:00:00Z`) : new Date(req.query['from'] as string);
+      to = nextDate ? new Date(`${nextDate}T23:59:59.999Z`) : new Date(req.query['to'] as string);
+    } else {
+      from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
+      to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+    }
+
+    const espnByTime = new Map<string, typeof espnMatches[0]>();
+    for (const e of espnMatches) espnByTime.set(e.kickoffUtc.slice(0, 16), e);
+
+    const todayCompleted = allGames
+      .filter((g) => {
+        const t = new Date(g.scheduled_at);
+        if (t < from || t > to) return false;
+        if (!isMock) return g.is_completed && g.actual_home_score != null && g.actual_away_score != null;
+        const elapsedMin = (Date.now() - t.getTime()) / 60000;
+        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+        const finished = g.is_completed || elapsedMin >= 150 || espn?.minute === 'FT';
+        const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
+        const homeScore = g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null;
+        const awayScore = g.actual_away_score ?? (flipped ? espn?.homeScore : espn?.awayScore) ?? null;
+        return finished && homeScore != null && awayScore != null;
+      })
+      .map((g) => {
+        if (!isMock) return g;
+        const espn = espnByTime.get(g.scheduled_at.slice(0, 16));
+        const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
+        return {
+          ...g,
+          actual_home_score: g.actual_home_score ?? (flipped ? espn?.awayScore : espn?.homeScore) ?? null,
+          actual_away_score: g.actual_away_score ?? (flipped ? espn?.homeScore : espn?.awayScore) ?? null,
+        };
+      });
+
+    const todayIds = new Set(todayCompleted.map((g) => g.game_id));
+
+    // Recalculate all historical points with alt E rule, split by today vs prior
+    const withAlt = participants.map((p) => {
+      let altTotal = 0;
+      let altToday = 0;
+      const todayBreakdown: { homeTeam: string; awayTeam: string; homeCode: string; awayCode: string; homeGoals: number; awayGoals: number; predictedHome: number; predictedAway: number; points: number }[] = [];
+
+      for (const g of p.breakdown) {
+        const stage = stageById.get(g.game_id) ?? 'group';
+        const pts = calculateLivePoints(
+          { home: g.predicted_home, away: g.predicted_away },
+          { home: g.actual_home, away: g.actual_away },
+          stage, rules, true,
+        );
+        altTotal += pts;
+        if (todayIds.has(g.game_id)) {
+          altToday += pts;
+          const game = todayCompleted.find((tc) => tc.game_id === g.game_id);
+          if (game) {
+            todayBreakdown.push({
+              homeTeam: game.home_team_name, awayTeam: game.away_team_name,
+              homeCode: game.home_flag, awayCode: game.away_flag,
+              homeGoals: game.actual_home_score!, awayGoals: game.actual_away_score!,
+              predictedHome: g.predicted_home, predictedAway: g.predicted_away,
+              points: pts,
+            });
+          }
+        }
+      }
+
+      return { ...p, altTotal, altToday, altPreToday: altTotal - altToday, todayBreakdown };
+    });
+
+    const rank = (sorted: typeof withAlt, key: keyof typeof withAlt[0]) => {
+      const map = new Map<number, number>();
+      for (let i = 0; i < sorted.length; i++) {
+        const prev = sorted[i - 1];
+        const cur = sorted[i][key] as number;
+        const prevVal = prev?.[key] as number | undefined;
+        map.set(sorted[i].id, prev && cur === prevVal ? map.get(prev.id)! : i + 1);
+      }
+      return map;
+    };
+
+    const currentSorted = [...withAlt].sort((a, b) => b.altTotal - a.altTotal || a.name.localeCompare(b.name));
+    const preTodaySorted = [...withAlt].sort((a, b) => b.altPreToday - a.altPreToday || a.name.localeCompare(b.name));
+    const currentRankMap = rank(currentSorted, 'altTotal');
+    const preTodayRankMap = rank(preTodaySorted, 'altPreToday');
+
+    return res.json({
+      updatedAt: new Date().toISOString(),
+      todayMatchCount: todayCompleted.length,
+      leaderboard: currentSorted.map((p) => ({
+        rank: currentRankMap.get(p.id) ?? 0,
+        preTodayRank: preTodayRankMap.get(p.id) ?? 0,
+        dailyDelta: (preTodayRankMap.get(p.id) ?? 0) - (currentRankMap.get(p.id) ?? 0),
+        id: p.id,
+        name: p.name,
+        pointsToday: p.altToday,
+        totalPoints: p.altTotal,
+        breakdown: p.todayBreakdown,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build alt daily recap' });
   }
 });
 

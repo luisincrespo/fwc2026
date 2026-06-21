@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { MatchPerformance } from '../types';
+import { COLOR_EXACT, COLOR_CORRECT } from '../lib/colors';
 
 interface Props {
   performance: MatchPerformance;
@@ -24,19 +25,19 @@ export function PerformanceBar({ performance }: Props) {
       </div>
 
       <div style={{ display: 'flex', height: 4, borderRadius: 4, overflow: 'hidden', gap: 1 }}>
-        <div style={{ flex: exact.length, background: '#f59e0b', minWidth: exact.length > 0 ? 2 : 0 }} />
-        <div style={{ flex: correct.length, background: '#22c55e', minWidth: correct.length > 0 ? 2 : 0 }} />
+        <div style={{ flex: exact.length, background: COLOR_EXACT, minWidth: exact.length > 0 ? 2 : 0 }} />
+        <div style={{ flex: correct.length, background: COLOR_CORRECT, minWidth: correct.length > 0 ? 2 : 0 }} />
         <div style={{ flex: miss.length, background: '#334155', minWidth: miss.length > 0 ? 2 : 0 }} />
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 5, fontSize: 12 }}>
-        <span style={{ color: '#f59e0b' }}>⭐ Exact {exact.length} ({Math.round(exact.length / performance.total * 100)}%)</span>
-        <span style={{ color: '#22c55e' }}>✓ Correct {correct.length} ({Math.round(correct.length / performance.total * 100)}%)</span>
+        <span style={{ color: COLOR_EXACT }}>⭐ Exact {exact.length} ({Math.round(exact.length / performance.total * 100)}%)</span>
+        <span style={{ color: COLOR_CORRECT }}>✓ Correct {correct.length} ({Math.round(correct.length / performance.total * 100)}%)</span>
         <span style={{ color: '#64748b' }}>✗ Miss {miss.length} ({Math.round(miss.length / performance.total * 100)}%)</span>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 8, fontSize: 12, color: '#f59e0b' }}>
+        <div style={{ marginTop: 8, fontSize: 12, color: COLOR_EXACT }}>
           {exact.map((e) => e.name).join(' · ')}
         </div>
       )}

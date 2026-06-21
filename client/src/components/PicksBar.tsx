@@ -1,5 +1,6 @@
 import type { MatchPicks } from '../types';
 import { teamColor } from '../teamColors';
+import { COLOR_CORRECT } from '../lib/colors';
 
 interface Props {
   picks: MatchPicks;
@@ -19,7 +20,7 @@ export function PicksBar({ picks, homeTeam, awayTeam, homeCode, awayCode }: Prop
   const drawPct = pct(draw, total);
   const awayPct = pct(away, total);
 
-  const homeClr = homeCode ? teamColor(homeCode, 'home') : '#22c55e';
+  const homeClr = homeCode ? teamColor(homeCode, 'home') : COLOR_CORRECT;
   const awayClr = awayCode ? teamColor(awayCode, 'away') : '#3b82f6';
 
   return (

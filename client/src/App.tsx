@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights, fetchAltLeaderboard } from './api';
+import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights, fetchAltLeaderboard, fetchAltDailyRecap } from './api';
 import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse, LeaderboardEntry } from './types';
 import { LiveMatchBanner, type HypoScores } from './components/LiveMatchBanner';
 import { calculatePoints } from './lib/scoring';
+import { COLOR_CORRECT, COLOR_RANK_DOWN, COLOR_EXPERIMENTAL, COLOR_EXPERIMENTAL_BG, COLOR_EXPERIMENTAL_BORDER, COLOR_EXPERIMENTAL_BRIGHT } from './lib/colors';
 import { BiggestMovers } from './components/BiggestMovers';
 import { DayMovers } from './components/DayMovers';
 import { TopScorers } from './components/TopScorers';
@@ -42,8 +43,10 @@ export function App() {
   const hasLive = (data?.liveMatches.length ?? 0) > 0;
   const [altMode, setAltMode] = useState(false);
   const [altData, setAltData] = useState<LiveLeaderboardResponse | null>(null);
+  const [altDailyData, setAltDailyData] = useState<DailyRecapResponse | null>(null);
   const [altLoading, setAltLoading] = useState(false);
   const altFetched = useRef(false);
+  const altDailyFetched = useRef(false);
 
   const load = useCallback(async (bust = false) => {
     try {
@@ -81,6 +84,9 @@ export function App() {
       if (altFetched.current) {
         fetchAltLeaderboard(bust).then(setAltData);
       }
+      if (altDailyFetched.current) {
+        fetchAltDailyRecap(bust).then(setAltDailyData);
+      }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
     } finally {
@@ -106,10 +112,16 @@ export function App() {
   const toggleAltMode = useCallback(() => {
     setAltMode((prev) => {
       const next = !prev;
-      if (next && !altFetched.current) {
-        altFetched.current = true;
-        setAltLoading(true);
-        fetchAltLeaderboard().then(setAltData).finally(() => setAltLoading(false));
+      if (next) {
+        if (!altFetched.current) {
+          altFetched.current = true;
+          setAltLoading(true);
+          fetchAltLeaderboard().then(setAltData).finally(() => setAltLoading(false));
+        }
+        if (!altDailyFetched.current && dailyFetched.current) {
+          altDailyFetched.current = true;
+          fetchAltDailyRecap().then(setAltDailyData);
+        }
       }
       return next;
     });
@@ -160,7 +172,7 @@ export function App() {
       perfByKey.set(`${m.homeTeam}|${m.awayTeam}`, { exact: [], correct: [], miss: [], total: 0 });
     }
     for (const entry of hypoEntries) {
-      for (const bd of entry.liveBreakdown) {
+      for (const bd of (entry.liveBreakdown ?? [])) {
         const perf = perfByKey.get(`${bd.homeTeam}|${bd.awayTeam}`);
         if (!perf) continue;
         perf.total++;
@@ -192,17 +204,23 @@ export function App() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (activeTab === 'today' && !dailyFetched.current) {
-      dailyFetched.current = true;
-      setDailyLoading(true);
-      fetchDailyRecap().then(setDailyData).finally(() => setDailyLoading(false));
+    if (activeTab === 'today') {
+      if (!dailyFetched.current) {
+        dailyFetched.current = true;
+        setDailyLoading(true);
+        fetchDailyRecap().then(setDailyData).finally(() => setDailyLoading(false));
+      }
+      if (altMode && !altDailyFetched.current) {
+        altDailyFetched.current = true;
+        fetchAltDailyRecap().then(setAltDailyData);
+      }
     }
     if (activeTab === 'insights' && !insightsFetched.current) {
       insightsFetched.current = true;
       setInsightsLoading(true);
       fetchInsights().then(setInsightsData).finally(() => setInsightsLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, altMode]);
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
@@ -214,22 +232,39 @@ export function App() {
         </div>
         <div style={{ textAlign: 'right', fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
           {data && <div>Updated {new Date(data.updatedAt).toLocaleTimeString()}</div>}
-          <button
-            onClick={async () => { setRefreshing(true); await load(true); setRefreshing(false); }}
-            disabled={refreshing || loading}
-            style={{
-              marginTop: 4,
-              background: 'none',
-              border: '1px solid #334155',
-              borderRadius: 6,
-              color: refreshing ? '#334155' : '#64748b',
-              fontSize: 12,
-              padding: '3px 10px',
-              cursor: refreshing ? 'default' : 'pointer',
-            }}
-          >
-            {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 4 }}>
+            <button
+              onClick={async () => { setRefreshing(true); await load(true); setRefreshing(false); }}
+              disabled={refreshing || loading}
+              style={{
+                background: 'none',
+                border: '1px solid #334155',
+                borderRadius: 6,
+                color: refreshing ? '#334155' : '#64748b',
+                fontSize: 12,
+                padding: '3px 10px',
+                cursor: refreshing ? 'default' : 'pointer',
+              }}
+            >
+              {refreshing ? '↻ Refreshing…' : '↻ Refresh'}
+            </button>
+            <button
+              onClick={toggleAltMode}
+              disabled={altLoading}
+              style={{
+                background: altMode ? COLOR_EXPERIMENTAL_BG : 'none',
+                border: `1px solid ${altMode ? COLOR_EXPERIMENTAL_BORDER : '#334155'}`,
+                borderRadius: 6,
+                color: altMode ? COLOR_EXPERIMENTAL : '#64748b',
+                fontSize: 12,
+                padding: '3px 10px',
+                cursor: altLoading ? 'default' : 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {altLoading ? '🧪 Loading…' : altMode ? '🧪 Tighter rules — tap to exit' : '🧪 Try tighter rules'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -246,7 +281,7 @@ export function App() {
               fontWeight: 600,
               background: 'none',
               color: activeTab === tab ? '#f1f5f9' : '#475569',
-              borderBottom: activeTab === tab ? '2px solid #22c55e' : '2px solid transparent',
+              borderBottom: activeTab === tab ? `2px solid ${COLOR_CORRECT}` : '2px solid transparent',
               marginBottom: -1,
             }}
           >
@@ -255,12 +290,23 @@ export function App() {
         ))}
       </div>
 
+      {altMode && (
+        <div style={{ marginBottom: 16, background: COLOR_EXPERIMENTAL_BG, border: `1px solid ${COLOR_EXPERIMENTAL_BORDER}`, borderRadius: 8, padding: '10px 14px', fontSize: 12, color: COLOR_EXPERIMENTAL, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>🧪 Tighter close-score rule (+2 pts)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div><span style={{ color: COLOR_EXPERIMENTAL_BRIGHT }}>Official:</span> within 1 goal on each side — outcome doesn't need to be right</div>
+            <div><span style={{ color: COLOR_EXPERIMENTAL_BRIGHT }}>Tighter:</span> outcome must be correct + total goal error ≤ 1</div>
+            <div style={{ marginTop: 2, color: COLOR_EXPERIMENTAL_BORDER }}>e.g. predicting 2–0 when actual is 3–1: official +2 pts, tighter +0 pts</div>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <p style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Loading…</p>
       )}
 
       {error && (
-        <p style={{ color: '#ef4444', textAlign: 'center', padding: 20 }}>{error}</p>
+        <p style={{ color: COLOR_RANK_DOWN, textAlign: 'center', padding: 20 }}>{error}</p>
       )}
 
       {hasPendingResults && (
@@ -292,37 +338,6 @@ export function App() {
               <BiggestMovers entries={hypoEntries} />
             </>
           )}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={toggleAltMode}
-                disabled={altLoading}
-                style={{
-                  fontSize: 11,
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  border: `1px solid ${altMode ? '#f59e0b' : '#334155'}`,
-                  background: altMode ? '#1c1400' : 'transparent',
-                  color: altMode ? '#f59e0b' : '#64748b',
-                  cursor: altLoading ? 'default' : 'pointer',
-                }}
-              >
-                {altLoading ? 'Loading…' : altMode ? '✕ Exit experimental scoring' : '🧪 Try tighter E rule'}
-              </button>
-            </div>
-            {altMode && (
-              <div style={{ marginTop: 8, background: '#1c1400', border: '1px solid #78350f', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#d97706', lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6, color: '#f59e0b' }}>🧪 Experimental: tighter close-score rule (+2 pts)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#92400e' }}>
-                  <div><span style={{ color: '#d97706' }}>Official:</span> within 1 goal on each side — outcome doesn't need to be right</div>
-                  <div><span style={{ color: '#f59e0b' }}>Tighter:</span> outcome must be correct + total goal error ≤ 1</div>
-                  <div style={{ color: '#78350f', marginTop: 2 }}>
-                    e.g. predicting 2–0 when actual is 3–1: official +2 pts, tighter +0 pts
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
           <Leaderboard
             entries={hypoEntries}
             hasLive={data.liveMatches.length > 0}
@@ -335,13 +350,21 @@ export function App() {
       {data && activeTab === 'today' && (
         <>
           <FinishedMatches matches={finished} />
-          {dailyData && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-              <TopScorers entries={dailyData.leaderboard} />
-              <DayMovers entries={dailyData.leaderboard} />
-            </div>
-          )}
-          <DailyMovement data={dailyData} loading={dailyLoading} />
+          {(() => {
+            const activeDailyData = altMode ? (altDailyData ?? dailyData) : dailyData;
+            const activeLoading = dailyLoading || (altMode && !altDailyData && !!dailyData);
+            return (
+              <>
+                {activeDailyData && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                    <TopScorers entries={activeDailyData.leaderboard} />
+                    <DayMovers entries={activeDailyData.leaderboard} />
+                  </div>
+                )}
+                <DailyMovement data={activeDailyData} loading={activeLoading} />
+              </>
+            );
+          })()}
         </>
       )}
 
