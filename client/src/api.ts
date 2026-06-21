@@ -74,3 +74,11 @@ export async function fetchInsights(bust = false): Promise<InsightsResponse> {
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
+
+export async function fetchAltInsights(bust = false): Promise<InsightsResponse> {
+  const params = new URLSearchParams();
+  if (bust) params.set('bust', 'true');
+  const res = await fetch(`/api/alt-insights?${params}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}

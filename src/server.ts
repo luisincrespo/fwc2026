@@ -621,22 +621,34 @@ app.get('/api/upcoming/:id', async (req, res) => {
   }
 });
 
-app.get('/api/insights', async (req, res) => {
-  try {
-    if (req.query['bust'] === 'true') bustQuinielaCache();
+async function buildInsights(bust: boolean, altE = false) {
+  if (bust) bustQuinielaCache();
 
-    const { participants } = await getLeaderboardWithBreakdown();
+  const { participants, rules } = await getLeaderboardWithBreakdown();
 
-    // Fetch full brackets for all participants — captures completed, live, and upcoming predictions.
-    // getUpcoming() misses games that have kicked off but aren't scored by quiniela yet.
-    const allBrackets = await Promise.all(
-      participants.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds }))),
+  // Fetch full brackets for all participants and game list in parallel.
+  // getUpcoming() misses games that have kicked off but aren't scored by quiniela yet.
+  const [allBrackets, allGames] = await Promise.all([
+    Promise.all(participants.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds })))),
+    getGames(),
+  ]);
+  const bracketByParticipant = new Map(allBrackets.map((b) => [b.id, b.preds]));
+  const stageById = new Map(allGames.map((g) => [g.game_id, g.stage === 'group' ? 'group' : 'ko'] as [number, 'group' | 'ko']));
+
+  type Bd = typeof participants[0]['breakdown'][0];
+  function effectivePts(g: Bd): number {
+    if (!altE) return g.points;
+    return calculateLivePoints(
+      { home: g.predicted_home, away: g.predicted_away },
+      { home: g.actual_home, away: g.actual_away },
+      stageById.get(g.game_id) ?? 'group', rules, true,
     );
-    const bracketByParticipant = new Map(allBrackets.map((b) => [b.id, b.preds]));
+  }
 
-    // Current ranking
+  // Current ranking
+  const currentRankMap = new Map<number, number>();
+  if (!altE) {
     const currentSorted = [...participants].sort((a, b) => b.total_points - a.total_points);
-    const currentRankMap = new Map<number, number>();
     for (let i = 0; i < currentSorted.length; i++) {
       const prev = currentSorted[i - 1];
       const rank = prev && prev.total_points === currentSorted[i].total_points
@@ -644,6 +656,15 @@ app.get('/api/insights', async (req, res) => {
         : i + 1;
       currentRankMap.set(currentSorted[i].id, rank);
     }
+  } else {
+    const altTotals = participants.map((p) => ({ id: p.id, pts: p.breakdown.reduce((s, g) => s + effectivePts(g), 0) }));
+    const altSorted = [...altTotals].sort((a, b) => b.pts - a.pts);
+    for (let i = 0; i < altSorted.length; i++) {
+      const prev = altSorted[i - 1];
+      const rank = prev && prev.pts === altSorted[i].pts ? currentRankMap.get(prev.id)! : i + 1;
+      currentRankMap.set(altSorted[i].id, rank);
+    }
+  }
 
     // Collect all distinct game dates from breakdown entries
     const allDateSet = new Set<string>();
@@ -659,7 +680,7 @@ app.get('/api/insights', async (req, res) => {
         id: p.id,
         points: p.breakdown
           .filter((g) => new Date(g.scheduled_at) <= cutoff)
-          .reduce((sum, g) => sum + g.points, 0),
+          .reduce((sum, g) => sum + effectivePts(g), 0),
       }));
       const sorted = [...pts].sort((a, b) => b.points - a.points);
       const map = new Map<number, number>();
@@ -706,7 +727,7 @@ app.get('/api/insights', async (req, res) => {
         avgGoals,
         ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
         pointsPerDay: gameDates.map((date) =>
-          bd.filter((g) => g.scheduled_at.slice(0, 10) === date).reduce((s, g) => s + g.points, 0),
+          bd.filter((g) => g.scheduled_at.slice(0, 10) === date).reduce((s, g) => s + effectivePts(g), 0),
         ),
       };
     });
@@ -757,7 +778,7 @@ app.get('/api/insights', async (req, res) => {
     const last3Dates = new Set(gameDates.slice(-3));
     const onFireStats = participants.map((p) => ({
       id: p.id, name: p.name,
-      pts: p.breakdown.filter((g) => last3Dates.has(g.scheduled_at.slice(0, 10))).reduce((s, g) => s + g.points, 0),
+      pts: p.breakdown.filter((g) => last3Dates.has(g.scheduled_at.slice(0, 10))).reduce((s, g) => s + effectivePts(g), 0),
     }));
 
     const perfectDayStats = participants.map((p) => {
@@ -865,7 +886,7 @@ app.get('/api/insights', async (req, res) => {
         const s = gameStatsMap.get(g.game_id)!;
         s.total++;
         if (g.categories_awarded.includes('A') || g.categories_awarded.includes('D')) s.correct++;
-        s.totalPts += g.points;
+        s.totalPts += effectivePts(g);
       }
     }
 
@@ -910,10 +931,24 @@ app.get('/api/insights', async (req, res) => {
       });
     }
 
-    res.json({ updatedAt: new Date().toISOString(), participants: result, gameDates, badges, funFacts });
+    return { updatedAt: new Date().toISOString(), participants: result, gameDates, badges, funFacts };
+}
+
+app.get('/api/insights', async (req, res) => {
+  try {
+    res.json(await buildInsights(req.query['bust'] === 'true', false));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build insights' });
+  }
+});
+
+app.get('/api/alt-insights', async (req, res) => {
+  try {
+    res.json(await buildInsights(req.query['bust'] === 'true', true));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build alt insights' });
   }
 });
 

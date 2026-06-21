@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights, fetchAltLeaderboard, fetchAltDailyRecap } from './api';
+import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights, fetchAltLeaderboard, fetchAltDailyRecap, fetchAltInsights } from './api';
 import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse, LeaderboardEntry } from './types';
 import { LiveMatchBanner, type HypoScores } from './components/LiveMatchBanner';
 import { calculatePoints } from './lib/scoring';
@@ -44,9 +44,11 @@ export function App() {
   const [altMode, setAltMode] = useState(false);
   const [altData, setAltData] = useState<LiveLeaderboardResponse | null>(null);
   const [altDailyData, setAltDailyData] = useState<DailyRecapResponse | null>(null);
+  const [altInsightsData, setAltInsightsData] = useState<InsightsResponse | null>(null);
   const [altLoading, setAltLoading] = useState(false);
   const altFetched = useRef(false);
   const altDailyFetched = useRef(false);
+  const altInsightsFetched = useRef(false);
 
   const load = useCallback(async (bust = false) => {
     try {
@@ -87,6 +89,9 @@ export function App() {
       if (altDailyFetched.current) {
         fetchAltDailyRecap(bust).then(setAltDailyData);
       }
+      if (altInsightsFetched.current) {
+        fetchAltInsights(bust).then(setAltInsightsData);
+      }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
     } finally {
@@ -121,6 +126,10 @@ export function App() {
         if (!altDailyFetched.current && dailyFetched.current) {
           altDailyFetched.current = true;
           fetchAltDailyRecap().then(setAltDailyData);
+        }
+        if (!altInsightsFetched.current && insightsFetched.current) {
+          altInsightsFetched.current = true;
+          fetchAltInsights().then(setAltInsightsData);
         }
       }
       return next;
@@ -215,10 +224,16 @@ export function App() {
         fetchAltDailyRecap().then(setAltDailyData);
       }
     }
-    if (activeTab === 'insights' && !insightsFetched.current) {
-      insightsFetched.current = true;
-      setInsightsLoading(true);
-      fetchInsights().then(setInsightsData).finally(() => setInsightsLoading(false));
+    if (activeTab === 'insights') {
+      if (!insightsFetched.current) {
+        insightsFetched.current = true;
+        setInsightsLoading(true);
+        fetchInsights().then(setInsightsData).finally(() => setInsightsLoading(false));
+      }
+      if (altMode && !altInsightsFetched.current) {
+        altInsightsFetched.current = true;
+        fetchAltInsights().then(setAltInsightsData);
+      }
     }
   }, [activeTab, altMode]);
 
@@ -369,7 +384,10 @@ export function App() {
       )}
 
       {activeTab === 'insights' && (
-        <Insights data={insightsData} loading={insightsLoading} />
+        <Insights
+          data={altMode ? (altInsightsData ?? insightsData) : insightsData}
+          loading={insightsLoading || (altMode && !altInsightsData && !!insightsData)}
+        />
       )}
     </div>
   );
