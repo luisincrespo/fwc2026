@@ -916,6 +916,153 @@ app.get('/api/insights', async (req, res) => {
   }
 });
 
+app.get('/api/alt-leaderboard', async (req, res) => {
+  try {
+    if (req.query['bust'] === 'true') bustQuinielaCache();
+    const [{ participants, rules }, espnMatches, allGames] = await Promise.all([
+      getLeaderboardWithBreakdown(),
+      getEspnMatches(),
+      getGames(),
+    ]);
+
+    const stageById = new Map(allGames.map((g) => [g.game_id, g.stage === 'group' ? 'group' : 'ko'] as [number, 'group' | 'ko']));
+    const quinielaByTime = new Map<string, typeof allGames[0]>();
+    for (const g of allGames) quinielaByTime.set(g.scheduled_at.slice(0, 16), g);
+
+    const espnLiveMatches: LiveMatchInternal[] = espnMatches
+      .filter((e) => {
+        if (!e.isLive) return false;
+        const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
+        return !q?.is_completed;
+      })
+      .map((e) => {
+        const q = quinielaByTime.get(e.kickoffUtc.slice(0, 16));
+        const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
+        return {
+          homeTeam: q?.home_team_name ?? e.espnHomeTeam,
+          awayTeam: q?.away_team_name ?? '',
+          homeCode: q?.home_flag ?? '',
+          awayCode: q?.away_flag ?? '',
+          homeGoals: (flipped ? e.awayScore : e.homeScore) ?? 0,
+          awayGoals: (flipped ? e.homeScore : e.awayScore) ?? 0,
+          utcDate: e.kickoffUtc,
+          minute: e.minute,
+          goals: flipped ? flipGoals(e.goals) : e.goals,
+          venue: e.venue,
+        };
+      });
+
+    const liveMatches = req.query['mock'] === 'true' ? await getMockMatches() : espnLiveMatches;
+
+    // Recalculate completed-game points per participant using alt E rule
+    const withAlt = participants.map((p) => {
+      let altOfficialPoints = 0;
+      for (const g of p.breakdown) {
+        const stage = stageById.get(g.game_id) ?? 'group';
+        altOfficialPoints += calculateLivePoints(
+          { home: g.predicted_home, away: g.predicted_away },
+          { home: g.actual_home, away: g.actual_away },
+          stage,
+          rules,
+          true,
+        );
+      }
+      return { ...p, altOfficialPoints };
+    });
+
+    const altOfficialSorted = [...withAlt].sort((a, b) => b.altOfficialPoints - a.altOfficialPoints);
+    const altOfficialRankMap = new Map<number, number>();
+    for (let i = 0; i < altOfficialSorted.length; i++) {
+      const prev = altOfficialSorted[i - 1];
+      const rank = prev && prev.altOfficialPoints === altOfficialSorted[i].altOfficialPoints
+        ? altOfficialRankMap.get(prev.id)!
+        : i + 1;
+      altOfficialRankMap.set(altOfficialSorted[i].id, rank);
+    }
+
+    if (liveMatches.length === 0) {
+      return res.json({
+        updatedAt: new Date().toISOString(),
+        scoringRules: rules,
+        liveMatches: [],
+        leaderboard: altOfficialSorted.map((p, i) => ({
+          rank: altOfficialRankMap.get(p.id) ?? i + 1,
+          rankDelta: 0,
+          id: p.id,
+          name: p.name,
+          officialPoints: p.altOfficialPoints,
+          livePoints: 0,
+          totalPoints: p.altOfficialPoints,
+          liveBreakdown: [],
+        })),
+      });
+    }
+
+    const brackets = await Promise.all(
+      participants.map((p) => getBracket(p.id).then((preds) => ({ id: p.id, preds }))),
+    );
+    const bracketMap = new Map(brackets.map((b) => [b.id, b.preds]));
+
+    const withLive = withAlt.map((p) => {
+      const preds = bracketMap.get(p.id) ?? [];
+      let livePoints = 0;
+      const liveBreakdown = [];
+      for (const match of liveMatches) {
+        const pred = preds.find((pr) => pr.home_team === match.homeTeam && pr.away_team === match.awayTeam);
+        if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
+        const points = calculateLivePoints(
+          { home: pred.predicted_home, away: pred.predicted_away },
+          { home: match.homeGoals, away: match.awayGoals },
+          pred.stage,
+          rules,
+          true,
+        );
+        livePoints += points;
+        liveBreakdown.push({
+          homeTeam: match.homeTeam, awayTeam: match.awayTeam,
+          homeCode: match.homeCode, awayCode: match.awayCode,
+          liveHome: match.homeGoals, liveAway: match.awayGoals,
+          predictedHome: pred.predicted_home, predictedAway: pred.predicted_away,
+          stage: pred.stage, points,
+        });
+      }
+      return { ...p, livePoints, totalPoints: p.altOfficialPoints + livePoints, liveBreakdown };
+    });
+
+    const altLiveRanked = [...withLive].sort((a, b) => b.totalPoints - a.totalPoints || a.name.localeCompare(b.name));
+    const altLiveRankMap = new Map<number, number>();
+    for (let i = 0; i < altLiveRanked.length; i++) {
+      const prev = altLiveRanked[i - 1];
+      const rank = prev && prev.totalPoints === altLiveRanked[i].totalPoints ? altLiveRankMap.get(prev.id)! : i + 1;
+      altLiveRankMap.set(altLiveRanked[i].id, rank);
+    }
+
+    return res.json({
+      updatedAt: new Date().toISOString(),
+      scoringRules: rules,
+      liveMatches: liveMatches.map((m) => ({
+        homeTeam: m.homeTeam, awayTeam: m.awayTeam,
+        homeCode: m.homeCode, awayCode: m.awayCode,
+        homeGoals: m.homeGoals, awayGoals: m.awayGoals,
+        minute: m.minute, goals: m.goals, venue: m.venue,
+      })),
+      leaderboard: altLiveRanked.map((p) => ({
+        rank: altLiveRankMap.get(p.id) ?? 0,
+        rankDelta: (altOfficialRankMap.get(p.id) ?? 0) - (altLiveRankMap.get(p.id) ?? 0),
+        id: p.id,
+        name: p.name,
+        officialPoints: p.altOfficialPoints,
+        livePoints: p.livePoints,
+        totalPoints: p.totalPoints,
+        liveBreakdown: p.liveBreakdown,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build alt leaderboard' });
+  }
+});
+
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(process.cwd(), 'client/dist');
   app.use(express.static(distPath));

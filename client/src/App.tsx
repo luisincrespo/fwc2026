@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights } from './api';
+import { fetchLeaderboard, fetchSchedule, fetchDailyRecap, fetchInsights, fetchAltLeaderboard } from './api';
 import type { LiveLeaderboardResponse, ScheduledMatch, DailyRecapResponse, InsightsResponse, LeaderboardEntry } from './types';
 import { LiveMatchBanner, type HypoScores } from './components/LiveMatchBanner';
 import { calculatePoints } from './lib/scoring';
@@ -40,6 +40,10 @@ export function App() {
   const prevRanks = useRef<Map<number, number>>(new Map());
   const [hypo, setHypo] = useState<HypoScores>({});
   const hasLive = (data?.liveMatches.length ?? 0) > 0;
+  const [altMode, setAltMode] = useState(false);
+  const [altData, setAltData] = useState<LiveLeaderboardResponse | null>(null);
+  const [altLoading, setAltLoading] = useState(false);
+  const altFetched = useRef(false);
 
   const load = useCallback(async (bust = false) => {
     try {
@@ -74,6 +78,9 @@ export function App() {
       if (insightsFetched.current) {
         fetchInsights(bust).then(setInsightsData);
       }
+      if (altFetched.current) {
+        fetchAltLeaderboard(bust).then(setAltData);
+      }
     } catch {
       setError('Failed to load leaderboard. Retrying soon…');
     } finally {
@@ -96,17 +103,31 @@ export function App() {
 
   const resetHypo = useCallback(() => setHypo({}), []);
 
-  const hypoEntries = useMemo((): LeaderboardEntry[] => {
-    if (!data || Object.keys(hypo).length === 0) return data?.leaderboard ?? [];
-    const rules = data.scoringRules;
+  const toggleAltMode = useCallback(() => {
+    setAltMode((prev) => {
+      const next = !prev;
+      if (next && !altFetched.current) {
+        altFetched.current = true;
+        setAltLoading(true);
+        fetchAltLeaderboard().then(setAltData).finally(() => setAltLoading(false));
+      }
+      return next;
+    });
+  }, []);
 
-    const recalculated = data.leaderboard.map((entry) => {
+  const hypoEntries = useMemo((): LeaderboardEntry[] => {
+    const baseData = altMode ? altData : data;
+    if (!baseData) return data?.leaderboard ?? [];
+    if (Object.keys(hypo).length === 0) return baseData.leaderboard;
+    const rules = baseData.scoringRules;
+
+    const recalculated = baseData.leaderboard.map((entry) => {
       let hypoLivePoints = 0;
       const hypoBreakdown = entry.liveBreakdown.map((bd) => {
         const key = `${bd.homeTeam}|${bd.awayTeam}`;
         const score = hypo[key] ?? { home: bd.liveHome, away: bd.liveAway };
         const isHypothetical = score.home !== bd.liveHome || score.away !== bd.liveAway;
-        const pts = calculatePoints({ home: bd.predictedHome, away: bd.predictedAway }, score, bd.stage, rules);
+        const pts = calculatePoints({ home: bd.predictedHome, away: bd.predictedAway }, score, bd.stage, rules, altMode);
         hypoLivePoints += pts;
         return { ...bd, liveHome: score.home, liveAway: score.away, points: pts, isHypothetical };
       });
@@ -127,10 +148,12 @@ export function App() {
         return { ...e, rank: hypoRank, rankDelta: officialRank - hypoRank };
       })
       .sort((a, b) => a.rank - b.rank);
-  }, [data, hypo]);
+  }, [data, altData, altMode, hypo]);
 
   const hypoLiveMatches = useMemo(() => {
-    if (!data || Object.keys(hypo).length === 0) return data?.liveMatches ?? [];
+    if (!data) return [];
+    const needsRecalc = Object.keys(hypo).length > 0 || altMode;
+    if (!needsRecalc) return data.liveMatches;
 
     const perfByKey = new Map<string, { exact: { name: string; predicted: string }[]; correct: { name: string; predicted: string }[]; miss: { name: string; predicted: string }[]; total: number }>();
     for (const m of data.liveMatches) {
@@ -150,10 +173,10 @@ export function App() {
 
     return data.liveMatches.map((m) => {
       const key = `${m.homeTeam}|${m.awayTeam}`;
-      if (!hypo[key]) return m;
+      if (!hypo[key] && !altMode) return m;
       return { ...m, performance: perfByKey.get(key) };
     });
-  }, [data, hypo, hypoEntries]);
+  }, [data, hypo, hypoEntries, altMode]);
 
   useEffect(() => {
     const interval = hasLive ? POLL_INTERVAL_LIVE : POLL_INTERVAL_IDLE;
@@ -269,10 +292,41 @@ export function App() {
               <BiggestMovers entries={hypoEntries} />
             </>
           )}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={toggleAltMode}
+                disabled={altLoading}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  border: `1px solid ${altMode ? '#f59e0b' : '#334155'}`,
+                  background: altMode ? '#1c1400' : 'transparent',
+                  color: altMode ? '#f59e0b' : '#64748b',
+                  cursor: altLoading ? 'default' : 'pointer',
+                }}
+              >
+                {altLoading ? 'Loading…' : altMode ? '✕ Exit experimental scoring' : '🧪 Try tighter E rule'}
+              </button>
+            </div>
+            {altMode && (
+              <div style={{ marginTop: 8, background: '#1c1400', border: '1px solid #78350f', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#d97706', lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6, color: '#f59e0b' }}>🧪 Experimental: tighter close-score rule (+2 pts)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#92400e' }}>
+                  <div><span style={{ color: '#d97706' }}>Official:</span> within 1 goal on each side — outcome doesn't need to be right</div>
+                  <div><span style={{ color: '#f59e0b' }}>Tighter:</span> outcome must be correct + total goal error ≤ 1</div>
+                  <div style={{ color: '#78350f', marginTop: 2 }}>
+                    e.g. predicting 2–0 when actual is 3–1: official +2 pts, tighter +0 pts
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           <Leaderboard
             entries={hypoEntries}
             hasLive={data.liveMatches.length > 0}
-            flashMap={Object.keys(hypo).length > 0 ? new Map() : flashMap}
+            flashMap={Object.keys(hypo).length > 0 || altMode ? new Map() : flashMap}
             upcoming={upcoming}
           />
         </>

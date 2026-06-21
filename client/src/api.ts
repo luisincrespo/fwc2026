@@ -46,6 +46,16 @@ export async function fetchParticipantUpcoming(participantId: number): Promise<U
   return data.predictions;
 }
 
+export async function fetchAltLeaderboard(bust = false): Promise<LiveLeaderboardResponse> {
+  const mock = new URLSearchParams(window.location.search).get('mock');
+  const params = new URLSearchParams();
+  if (mock === 'true') params.set('mock', 'true');
+  if (bust) params.set('bust', 'true');
+  const res = await fetch(`/api/alt-leaderboard?${params}`);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
 export async function fetchInsights(bust = false): Promise<InsightsResponse> {
   const params = new URLSearchParams();
   if (bust) params.set('bust', 'true');
