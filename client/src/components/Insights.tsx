@@ -103,16 +103,16 @@ export function Insights({ data, loading }: Props) {
       <Badges badges={data.badges} />
 
       <div style={{ marginBottom: 20 }}>
-        <div style={SECTION_LABEL}>Points per game day</div>
+        <div style={SECTION_LABEL}>Rank trajectory</div>
         <div style={{ ...CARD, paddingBottom: 14 }}>
-          <PointsPerDayChart data={data} />
+          <RankChart data={data} />
         </div>
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <div style={SECTION_LABEL}>Rank trajectory</div>
+        <div style={SECTION_LABEL}>Points per game day</div>
         <div style={{ ...CARD, paddingBottom: 14 }}>
-          <RankChart data={data} />
+          <PointsPerDayChart data={data} />
         </div>
       </div>
 
