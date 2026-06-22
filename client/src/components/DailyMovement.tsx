@@ -61,6 +61,11 @@ const columns: ColumnDef<DailyEntry>[] = [
       <span style={{ color: COLOR_MISS }}>—</span>
     ),
   },
+  {
+    header: 'Total',
+    tdStyle: (e) => ({ fontWeight: e.rank <= 3 ? 700 : 400 }),
+    render: (e) => e.totalPoints,
+  },
 ];
 
 export function DailyMovement({ data, loading }: Props) {
