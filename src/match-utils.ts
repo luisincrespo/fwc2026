@@ -9,7 +9,7 @@ export const FIFA_TO_ISO2: Record<string, string> = {
   IRN: 'ir', KOR: 'kr', PHI: 'ph',
   // Europe
   BIH: 'ba', CRO: 'hr', DEN: 'dk', ENG: 'gb-eng', GER: 'de', NED: 'nl',
-  NIR: 'gb-nir', POL: 'pl', POR: 'pt', SCO: 'gb-sco', SLO: 'si', SRB: 'rs',
+  NIR: 'gb-nir', POL: 'pl', POR: 'pt', SCO: 'gb-sct', SLO: 'si', SRB: 'rs',
   SUI: 'ch', SVK: 'sk', SWE: 'se', UKR: 'ua', WAL: 'gb-wls',
   // Middle East / Asia
   KSA: 'sa',
@@ -34,6 +34,8 @@ export function isEspnFlipped(espnHomeAbbr: string, espnAwayAbbr: string, quinie
 
 // Build a flag-pair → quiniela game map: each team pair plays exactly once.
 // Both orderings are stored so ESPN's home/away order doesn't matter.
+// Games with null flags (knockout rounds before bracket is filled) are skipped — use
+// buildQuinielaByTeamNames as a fallback for those.
 export function buildQuinielaByFlags<T extends { home_flag: string | null; away_flag: string | null }>(games: T[]): Map<string, T> {
   const m = new Map<string, T>();
   for (const g of games) {
@@ -46,12 +48,38 @@ export function buildQuinielaByFlags<T extends { home_flag: string | null; away_
   return m;
 }
 
+// Fallback for knockout games where quiniela has null flags but known team names.
+export function buildQuinielaByTeamNames<T extends { home_team_name: string | null; away_team_name: string | null; home_flag: string | null; away_flag: string | null }>(games: T[]): Map<string, T> {
+  const m = new Map<string, T>();
+  for (const g of games) {
+    if (g.home_flag && g.away_flag) continue; // already covered by buildQuinielaByFlags
+    if (!g.home_team_name || !g.away_team_name) continue;
+    const h = g.home_team_name.toLowerCase();
+    const a = g.away_team_name.toLowerCase();
+    m.set(`${h}|${a}`, g);
+    m.set(`${a}|${h}`, g);
+  }
+  return m;
+}
+
 // Build a flag-pair → ESPN match map (reverse direction).
 export function buildEspnByFlags<T extends { espnHomeAbbr: string; espnAwayAbbr: string }>(matches: T[]): Map<string, T> {
   const m = new Map<string, T>();
   for (const e of matches) {
     const h = espnAbbrToIso2(e.espnHomeAbbr);
     const a = espnAbbrToIso2(e.espnAwayAbbr);
+    m.set(`${h}|${a}`, e);
+    m.set(`${a}|${h}`, e);
+  }
+  return m;
+}
+
+// Fallback ESPN lookup by display team name for schedule handler when quiniela flags are null.
+export function buildEspnByTeamNames<T extends { espnHomeTeam: string; espnAwayTeam: string }>(matches: T[]): Map<string, T> {
+  const m = new Map<string, T>();
+  for (const e of matches) {
+    const h = e.espnHomeTeam.toLowerCase();
+    const a = e.espnAwayTeam.toLowerCase();
     m.set(`${h}|${a}`, e);
     m.set(`${a}|${h}`, e);
   }

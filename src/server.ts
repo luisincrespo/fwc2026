@@ -5,7 +5,7 @@ import path from 'path';
 import { getOfficialLeaderboard, getBracket, getGames, getLeaderboardWithBreakdown, getUpcoming } from './services/quiniela.js';
 import { getEspnMatches, type EspnGoal } from './services/espn.js';
 import { calculateLivePoints } from './scoring.js';
-import { espnAbbrToIso2, isEspnFlipped, buildQuinielaByFlags, buildEspnByFlags } from './match-utils.js';
+import { espnAbbrToIso2, isEspnFlipped, buildQuinielaByFlags, buildQuinielaByTeamNames, buildEspnByFlags, buildEspnByTeamNames } from './match-utils.js';
 import * as cache from './cache.js';
 
 function bustQuinielaCache() {
@@ -74,6 +74,7 @@ app.get('/api/leaderboard', async (req, res) => {
     ]);
 
     const quinielaByFlags = buildQuinielaByFlags(allGames);
+    const quinielaByTeamNames = buildQuinielaByTeamNames(allGames);
 
     const espnLiveMatches: LiveMatchInternal[] = espnMatches
       .filter((e) => {
@@ -81,21 +82,23 @@ app.get('/api/leaderboard', async (req, res) => {
         // If quiniela already processed the result, points are in official totals — skip.
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
-        const q = quinielaByFlags.get(`${h}|${a}`);
+        const q = quinielaByFlags.get(`${h}|${a}`)
+          ?? quinielaByTeamNames.get(`${e.espnHomeTeam.toLowerCase()}|${e.espnAwayTeam.toLowerCase()}`);
         return !q?.is_completed;
       })
       .map((e) => {
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
-        const q = quinielaByFlags.get(`${h}|${a}`);
-        if (!q) console.warn(`[leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}) — add to FIFA_TO_ISO2 in match-utils.ts`);
+        const q = quinielaByFlags.get(`${h}|${a}`)
+          ?? quinielaByTeamNames.get(`${e.espnHomeTeam.toLowerCase()}|${e.espnAwayTeam.toLowerCase()}`);
+        if (!q) console.warn(`[leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}, teams: ${e.espnHomeTeam}|${e.espnAwayTeam})`);
         const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
         const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
           homeTeam: quinielaHome,
-          awayTeam: q?.away_team_name ?? '',
-          homeCode: q?.home_flag ?? '',
-          awayCode: q?.away_flag ?? '',
+          awayTeam: q?.away_team_name ?? e.espnAwayTeam,
+          homeCode: q?.home_flag ?? (flipped ? a : h),
+          awayCode: q?.away_flag ?? (flipped ? h : a),
           homeGoals: (flipped ? e.awayScore : e.homeScore) ?? 0,
           awayGoals: (flipped ? e.homeScore : e.awayScore) ?? 0,
           utcDate: e.kickoffUtc,
@@ -1062,26 +1065,29 @@ app.get('/api/alt-leaderboard', async (req, res) => {
 
     const stageById = new Map(allGames.map((g) => [g.game_id, g.stage === 'group' ? 'group' : 'ko'] as [number, 'group' | 'ko']));
     const quinielaByFlags = buildQuinielaByFlags(allGames);
+    const quinielaByTeamNames = buildQuinielaByTeamNames(allGames);
 
     const espnLiveMatches: LiveMatchInternal[] = espnMatches
       .filter((e) => {
         if (!e.isLive) return false;
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
-        const q = quinielaByFlags.get(`${h}|${a}`);
+        const q = quinielaByFlags.get(`${h}|${a}`)
+          ?? quinielaByTeamNames.get(`${e.espnHomeTeam.toLowerCase()}|${e.espnAwayTeam.toLowerCase()}`);
         return !q?.is_completed;
       })
       .map((e) => {
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
-        const q = quinielaByFlags.get(`${h}|${a}`);
-        if (!q) console.warn(`[alt-leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}) — add to FIFA_TO_ISO2 in match-utils.ts`);
+        const q = quinielaByFlags.get(`${h}|${a}`)
+          ?? quinielaByTeamNames.get(`${e.espnHomeTeam.toLowerCase()}|${e.espnAwayTeam.toLowerCase()}`);
+        if (!q) console.warn(`[alt-leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}, teams: ${e.espnHomeTeam}|${e.espnAwayTeam})`);
         const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
           homeTeam: q?.home_team_name ?? e.espnHomeTeam,
-          awayTeam: q?.away_team_name ?? '',
-          homeCode: q?.home_flag ?? '',
-          awayCode: q?.away_flag ?? '',
+          awayTeam: q?.away_team_name ?? e.espnAwayTeam,
+          homeCode: q?.home_flag ?? (flipped ? a : h),
+          awayCode: q?.away_flag ?? (flipped ? h : a),
           homeGoals: (flipped ? e.awayScore : e.homeScore) ?? 0,
           awayGoals: (flipped ? e.homeScore : e.awayScore) ?? 0,
           utcDate: e.kickoffUtc,
@@ -1199,6 +1205,28 @@ app.get('/api/alt-leaderboard', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build alt leaderboard' });
+  }
+});
+
+app.get('/api/debug-flags', async (_req, res) => {
+  try {
+    const [allGames, espnMatches] = await Promise.all([getGames(), getEspnMatches()]);
+    res.json({
+      quinielaGames: allGames.map((g) => ({
+        home_team: g.home_team_name, away_team: g.away_team_name,
+        home_flag: g.home_flag, away_flag: g.away_flag,
+        scheduled_at: g.scheduled_at,
+      })),
+      espnMatches: espnMatches.map((e) => ({
+        home: e.espnHomeTeam, away: e.espnAwayTeam,
+        homeAbbr: e.espnHomeAbbr, awayAbbr: e.espnAwayAbbr,
+        homeMapped: espnAbbrToIso2(e.espnHomeAbbr), awayMapped: espnAbbrToIso2(e.espnAwayAbbr),
+        isLive: e.isLive, minute: e.minute,
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 

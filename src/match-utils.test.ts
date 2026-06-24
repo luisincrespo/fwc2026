@@ -12,8 +12,8 @@ describe('espnAbbrToIso2', () => {
     expect(espnAbbrToIso2('BIH')).toBe('ba');
   });
 
-  it('maps UK nations to flagcdn.com subdivision codes', () => {
-    expect(espnAbbrToIso2('SCO')).toBe('gb-sco');
+  it('maps UK nations to ISO 3166-2 subdivision codes used by flagcdn.com', () => {
+    expect(espnAbbrToIso2('SCO')).toBe('gb-sct'); // GB-SCT, not gb-sco
     expect(espnAbbrToIso2('ENG')).toBe('gb-eng');
     expect(espnAbbrToIso2('WAL')).toBe('gb-wls');
     expect(espnAbbrToIso2('NIR')).toBe('gb-nir');
@@ -80,7 +80,7 @@ describe('isEspnFlipped', () => {
 describe('buildQuinielaByFlags', () => {
   const games = [
     { home_flag: 'br', away_flag: 'ma', home_team_name: 'Brazil', away_team_name: 'Morocco' },
-    { home_flag: 'gb-sco', away_flag: 'ht', home_team_name: 'Scotland', away_team_name: 'Haiti' },
+    { home_flag: 'gb-sct', away_flag: 'ht', home_team_name: 'Scotland', away_team_name: 'Haiti' },
     { home_flag: 'ba', away_flag: 'qa', home_team_name: 'Bosnia and Herzegovina', away_team_name: 'Qatar' },
     { home_flag: null, away_flag: null, home_team_name: 'TBD', away_team_name: 'TBD' }, // future knockout
   ];
@@ -88,22 +88,22 @@ describe('buildQuinielaByFlags', () => {
   it('finds game by ESPN home|away ordering', () => {
     const map = buildQuinielaByFlags(games);
     expect(map.get('br|ma')?.home_team_name).toBe('Brazil');
-    expect(map.get('gb-sco|ht')?.home_team_name).toBe('Scotland');
+    expect(map.get('gb-sct|ht')?.home_team_name).toBe('Scotland');
     expect(map.get('ba|qa')?.home_team_name).toBe('Bosnia and Herzegovina');
   });
 
   it('finds game when ESPN has teams in reverse order (flipped)', () => {
     const map = buildQuinielaByFlags(games);
     expect(map.get('ma|br')?.home_team_name).toBe('Brazil');
-    expect(map.get('ht|gb-sco')?.home_team_name).toBe('Scotland');
+    expect(map.get('ht|gb-sct')?.home_team_name).toBe('Scotland');
     expect(map.get('qa|ba')?.home_team_name).toBe('Bosnia and Herzegovina');
   });
 
   it('does not conflate two simultaneous games — each flag pair returns its own game', () => {
     const map = buildQuinielaByFlags(games);
     expect(map.get('br|ma')?.home_team_name).toBe('Brazil');
-    expect(map.get('gb-sco|ht')?.home_team_name).toBe('Scotland');
-    expect(map.get('br|ma')).not.toBe(map.get('gb-sco|ht'));
+    expect(map.get('gb-sct|ht')?.home_team_name).toBe('Scotland');
+    expect(map.get('br|ma')).not.toBe(map.get('gb-sct|ht'));
   });
 
   it('skips games with null flags without throwing', () => {
@@ -123,8 +123,8 @@ describe('buildEspnByFlags', () => {
   it('finds ESPN match from quiniela flag pair (normal ordering)', () => {
     const map = buildEspnByFlags(espnMatches);
     expect(map.get('br|ma')?.homeScore).toBe(2);
-    // SCO → gb-sco, HAI → ht (regressions)
-    expect(map.get('gb-sco|ht')?.homeScore).toBe(1);
+    // SCO → gb-sct, HAI → ht (regressions)
+    expect(map.get('gb-sct|ht')?.homeScore).toBe(1);
     // BIH → ba (regression)
     expect(map.get('ba|qa')?.homeScore).toBe(0);
   });
@@ -132,13 +132,13 @@ describe('buildEspnByFlags', () => {
   it('finds ESPN match when quiniela has teams in reverse order', () => {
     const map = buildEspnByFlags(espnMatches);
     expect(map.get('ma|br')?.homeScore).toBe(2);
-    expect(map.get('ht|gb-sco')?.homeScore).toBe(1);
+    expect(map.get('ht|gb-sct')?.homeScore).toBe(1);
     expect(map.get('qa|ba')?.homeScore).toBe(0);
   });
 
   it('does not conflate two simultaneous games', () => {
     const map = buildEspnByFlags(espnMatches);
-    expect(map.get('br|ma')).not.toBe(map.get('gb-sco|ht'));
+    expect(map.get('br|ma')).not.toBe(map.get('gb-sct|ht'));
   });
 });
 
