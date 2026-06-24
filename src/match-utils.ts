@@ -9,8 +9,10 @@ export const FIFA_TO_ISO2: Record<string, string> = {
   IRN: 'ir', KOR: 'kr', PHI: 'ph',
   // Europe
   BIH: 'ba', CRO: 'hr', DEN: 'dk', ENG: 'gb-eng', GER: 'de', NED: 'nl',
-  NIR: 'gb-nir', POR: 'pt', SCO: 'gb-sco', SLO: 'si', SUI: 'ch', SVK: 'sk',
-  SWE: 'se', WAL: 'gb-wls',
+  NIR: 'gb-nir', POL: 'pl', POR: 'pt', SCO: 'gb-sco', SLO: 'si', SRB: 'rs',
+  SUI: 'ch', SVK: 'sk', SWE: 'se', UKR: 'ua', WAL: 'gb-wls',
+  // Middle East / Asia
+  KSA: 'sa',
   // North & Central America / Caribbean
   GUA: 'gt', HAI: 'ht', HON: 'hn', JAM: 'jm', MEX: 'mx', SLV: 'sv', TRI: 'tt',
   // South America

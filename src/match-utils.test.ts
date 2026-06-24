@@ -27,6 +27,16 @@ describe('espnAbbrToIso2', () => {
     expect(espnAbbrToIso2('SLV')).toBe('sv');  // 'sl' would be Sierra Leone!
   });
 
+  it('maps European teams whose first-2-chars would be wrong', () => {
+    expect(espnAbbrToIso2('SRB')).toBe('rs');  // 'sr' would be Suriname!
+    expect(espnAbbrToIso2('POL')).toBe('pl');  // 'po' ≠ 'pl'
+    expect(espnAbbrToIso2('UKR')).toBe('ua');  // 'uk' ≠ 'ua'
+  });
+
+  it('maps Saudi Arabia ESPN code to sa', () => {
+    expect(espnAbbrToIso2('KSA')).toBe('sa');  // 'ks' ≠ 'sa'
+  });
+
   it('maps explicit table entries correctly', () => {
     expect(espnAbbrToIso2('GER')).toBe('de');
     expect(espnAbbrToIso2('POR')).toBe('pt');

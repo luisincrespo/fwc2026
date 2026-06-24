@@ -88,6 +88,7 @@ app.get('/api/leaderboard', async (req, res) => {
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
         const q = quinielaByFlags.get(`${h}|${a}`);
+        if (!q) console.warn(`[leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}) — add to FIFA_TO_ISO2 in match-utils.ts`);
         const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
         const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
@@ -1074,6 +1075,7 @@ app.get('/api/alt-leaderboard', async (req, res) => {
         const h = espnAbbrToIso2(e.espnHomeAbbr);
         const a = espnAbbrToIso2(e.espnAwayAbbr);
         const q = quinielaByFlags.get(`${h}|${a}`);
+        if (!q) console.warn(`[alt-leaderboard] No quiniela match for ESPN ${e.espnHomeAbbr} vs ${e.espnAwayAbbr} (flags: ${h}|${a}) — add to FIFA_TO_ISO2 in match-utils.ts`);
         const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
           homeTeam: q?.home_team_name ?? e.espnHomeTeam,
