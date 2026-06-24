@@ -12,6 +12,21 @@ describe('espnAbbrToIso2', () => {
     expect(espnAbbrToIso2('BIH')).toBe('ba');
   });
 
+  it('maps UK nations to flagcdn.com subdivision codes', () => {
+    expect(espnAbbrToIso2('SCO')).toBe('gb-sco');
+    expect(espnAbbrToIso2('ENG')).toBe('gb-eng');
+    expect(espnAbbrToIso2('WAL')).toBe('gb-wls');
+    expect(espnAbbrToIso2('NIR')).toBe('gb-nir');
+  });
+
+  it('maps CONCACAF teams whose first-2-chars would be wrong', () => {
+    expect(espnAbbrToIso2('HAI')).toBe('ht');  // 'ha' ≠ 'ht'
+    expect(espnAbbrToIso2('HON')).toBe('hn');  // 'ho' ≠ 'hn'
+    expect(espnAbbrToIso2('GUA')).toBe('gt');  // 'gu' ≠ 'gt'
+    expect(espnAbbrToIso2('TRI')).toBe('tt');  // 'tr' would be Turkey!
+    expect(espnAbbrToIso2('SLV')).toBe('sv');  // 'sl' would be Sierra Leone!
+  });
+
   it('maps explicit table entries correctly', () => {
     expect(espnAbbrToIso2('GER')).toBe('de');
     expect(espnAbbrToIso2('POR')).toBe('pt');
@@ -98,20 +113,22 @@ describe('buildEspnByFlags', () => {
   it('finds ESPN match from quiniela flag pair (normal ordering)', () => {
     const map = buildEspnByFlags(espnMatches);
     expect(map.get('br|ma')?.homeScore).toBe(2);
-    expect(map.get('sc|ha')?.homeScore).toBe(1);
-    // BIH regression: must map via 'ba' not 'bi'
+    // SCO → gb-sco, HAI → ht (regressions)
+    expect(map.get('gb-sco|ht')?.homeScore).toBe(1);
+    // BIH → ba (regression)
     expect(map.get('ba|qa')?.homeScore).toBe(0);
   });
 
   it('finds ESPN match when quiniela has teams in reverse order', () => {
     const map = buildEspnByFlags(espnMatches);
     expect(map.get('ma|br')?.homeScore).toBe(2);
+    expect(map.get('ht|gb-sco')?.homeScore).toBe(1);
     expect(map.get('qa|ba')?.homeScore).toBe(0);
   });
 
   it('does not conflate two simultaneous games', () => {
     const map = buildEspnByFlags(espnMatches);
-    expect(map.get('br|ma')).not.toBe(map.get('sc|ha'));
+    expect(map.get('br|ma')).not.toBe(map.get('gb-sco|ht'));
   });
 });
 

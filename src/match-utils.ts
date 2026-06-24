@@ -1,11 +1,20 @@
-// ESPN uses 3-letter FIFA/IOC abbreviations; quiniela flags are ISO 3166-1 alpha-2.
-// Entries only needed where the first two letters of the FIFA code ≠ the ISO-2 code.
+// ESPN uses 3-letter FIFA/IOC abbreviations; quiniela flags are ISO 3166-1 alpha-2
+// (or flagcdn.com subdivision codes for UK nations).
+// Entries only needed where the first two letters of the FIFA code ≠ the flag code.
 export const FIFA_TO_ISO2: Record<string, string> = {
-  ALG: 'dz', ANG: 'ao', BIH: 'ba', CHI: 'cl', COD: 'cd', CON: 'cg', CRO: 'hr',
-  DEN: 'dk', GER: 'de', GNB: 'gw', IRN: 'ir', JAM: 'jm', KOR: 'kr',
-  MEX: 'mx', MOZ: 'mz', NED: 'nl', PAR: 'py', PHI: 'ph', POR: 'pt',
-  RSA: 'za', SEN: 'sn', SLO: 'si', SUI: 'ch', SVK: 'sk', SWE: 'se',
-  TUN: 'tn', URU: 'uy', ZAM: 'zm', ZIM: 'zw',
+  // Africa
+  ALG: 'dz', ANG: 'ao', COD: 'cd', CON: 'cg', GNB: 'gw', MOZ: 'mz',
+  RSA: 'za', SEN: 'sn', TUN: 'tn', ZAM: 'zm', ZIM: 'zw',
+  // Asia
+  IRN: 'ir', KOR: 'kr', PHI: 'ph',
+  // Europe
+  BIH: 'ba', CRO: 'hr', DEN: 'dk', ENG: 'gb-eng', GER: 'de', NED: 'nl',
+  NIR: 'gb-nir', POR: 'pt', SCO: 'gb-sco', SLO: 'si', SUI: 'ch', SVK: 'sk',
+  SWE: 'se', WAL: 'gb-wls',
+  // North & Central America / Caribbean
+  GUA: 'gt', HAI: 'ht', HON: 'hn', JAM: 'jm', MEX: 'mx', SLV: 'sv', TRI: 'tt',
+  // South America
+  CHI: 'cl', PAR: 'py', URU: 'uy',
 };
 
 export function espnAbbrToIso2(abbr: string): string {
