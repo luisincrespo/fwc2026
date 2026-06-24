@@ -56,17 +56,17 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
 function ExpandedRow({ entry, colSpan, upcoming }: { entry: LeaderboardEntry; colSpan: number; upcoming: ScheduledMatch[] }) {
   const [upcomingPreds, setUpcomingPreds] = useState<UpcomingPrediction[] | null>(null);
 
-  const kickoffMap = useMemo(
-    () => new Map(upcoming.map((m) => [m.kickoffUtc.slice(0, 13), m])),
+  const matchByTeams = useMemo(
+    () => new Map(upcoming.map((m) => [`${m.homeTeam}|${m.awayTeam}`, m])),
     [upcoming],
   );
 
   useEffect(() => {
     if (upcoming.length === 0) { setUpcomingPreds([]); return; }
     fetchParticipantUpcoming(entry.id)
-      .then((preds) => setUpcomingPreds(preds.filter((p) => kickoffMap.has(p.scheduled_at.slice(0, 13)))))
+      .then((preds) => setUpcomingPreds(preds.filter((p) => matchByTeams.has(`${p.home_team}|${p.away_team}`))))
       .catch(() => setUpcomingPreds([]));
-  }, [entry.id, kickoffMap]);
+  }, [entry.id, matchByTeams]);
 
   return (
     <>
@@ -82,7 +82,7 @@ function ExpandedRow({ entry, colSpan, upcoming }: { entry: LeaderboardEntry; co
           </tr>
         )
         : upcomingPreds.map((pred) => (
-          <UpcomingPredRow key={pred.game_id} pred={pred} match={kickoffMap.get(pred.scheduled_at.slice(0, 13))} colSpan={colSpan} />
+          <UpcomingPredRow key={pred.game_id} pred={pred} match={matchByTeams.get(`${pred.home_team}|${pred.away_team}`)} colSpan={colSpan} />
         ))
       }
     </>

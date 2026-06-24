@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cache from '../cache.js';
+import { deduplicateEspnMatches } from '../match-utils.js';
 
 const ONE_MIN = 60 * 1000;
 
@@ -105,15 +106,10 @@ export async function getEspnMatches(): Promise<EspnMatch[]> {
     axios.get(`${BASE}?dates=${yesterday}`),
   ]);
 
-  const seenKickoffs = new Set<string>();
-  const matches: EspnMatch[] = [];
-
-  for (const m of [...parseEvents(resToday.data.events ?? []), ...parseEvents(resYesterday.data.events ?? [])]) {
-    if (!seenKickoffs.has(m.kickoffUtc)) {
-      seenKickoffs.add(m.kickoffUtc);
-      matches.push(m);
-    }
-  }
+  const matches = deduplicateEspnMatches([
+    ...parseEvents(resToday.data.events ?? []),
+    ...parseEvents(resYesterday.data.events ?? []),
+  ]);
 
   cache.set(cacheKey, matches, ONE_MIN);
   return matches;
