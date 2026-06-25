@@ -20,6 +20,7 @@ describe('espnAbbrToIso2', () => {
   });
 
   it('maps CONCACAF teams whose first-2-chars would be wrong', () => {
+    expect(espnAbbrToIso2('CUW')).toBe('cw');  // 'cu' would be Cuba!
     expect(espnAbbrToIso2('HAI')).toBe('ht');  // 'ha' ≠ 'ht'
     expect(espnAbbrToIso2('HON')).toBe('hn');  // 'ho' ≠ 'hn'
     expect(espnAbbrToIso2('GUA')).toBe('gt');  // 'gu' ≠ 'gt'

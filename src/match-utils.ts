@@ -14,7 +14,7 @@ export const FIFA_TO_ISO2: Record<string, string> = {
   // Middle East / Asia
   KSA: 'sa',
   // North & Central America / Caribbean
-  GUA: 'gt', HAI: 'ht', HON: 'hn', JAM: 'jm', MEX: 'mx', SLV: 'sv', TRI: 'tt',
+  CUW: 'cw', GUA: 'gt', HAI: 'ht', HON: 'hn', JAM: 'jm', MEX: 'mx', SLV: 'sv', TRI: 'tt',
   // South America
   CHI: 'cl', PAR: 'py', URU: 'uy',
 };
