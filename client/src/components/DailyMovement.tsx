@@ -1,4 +1,4 @@
-import type { DailyRecapResponse, DailyEntry, DailyBreakdown } from '../types';
+import type { DailyRecapResponse, DailyEntry, DailyBreakdown, GroupBonus } from '../types';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
 import { MatchBreakdownRow } from './MatchBreakdownRow';
 import { COLOR_RANK_1, COLOR_RANK_2, COLOR_RANK_3, COLOR_CORRECT_LIVE, COLOR_MISS, COLOR_RANK_DOWN_SOFT } from '../lib/colors';
@@ -22,6 +22,27 @@ function BreakdownRow({ pred }: { pred: DailyBreakdown }) {
   );
 }
 
+function GroupBonusRow({ bonus }: { bonus: GroupBonus }) {
+  const label = bonus.points > 0
+    ? `${bonus.correct}/4 positions correct`
+    : 'No positions correct';
+  return (
+    <tr>
+      <td colSpan={4} style={{ padding: '4px 8px 4px 28px', background: '#0f172a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
+          <span style={{ color: '#475569', fontWeight: 600, minWidth: 64 }}>Group {bonus.group}</span>
+          <span>Group standings bonus</span>
+          <span style={{ color: '#475569' }}>·</span>
+          <span>{label}</span>
+          <span style={{ marginLeft: 'auto', color: bonus.points > 0 ? COLOR_CORRECT_LIVE : COLOR_MISS, fontWeight: 600 }}>
+            {bonus.points > 0 ? `+${bonus.points}` : '—'}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 const columns: ColumnDef<DailyEntry>[] = [
   {
     header: '#',
@@ -40,7 +61,7 @@ const columns: ColumnDef<DailyEntry>[] = [
     render: (e, isExpanded) => (
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {e.name}
-        {e.breakdown.length > 0 && (
+        {(e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0) && (
           <span style={{ color: '#475569', fontSize: 11 }}>{isExpanded ? '▲' : '▼'}</span>
         )}
       </span>
@@ -96,8 +117,13 @@ export function DailyMovement({ data, loading }: Props) {
     <BaseLeaderboard
       entries={data.leaderboard}
       columns={columns}
-      isExpandable={(e) => e.breakdown.length > 0}
-      renderExpanded={(e) => e.breakdown.map((pred, j) => <BreakdownRow key={j} pred={pred} />)}
+      isExpandable={(e) => e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0}
+      renderExpanded={(e) => (
+        <>
+          {e.breakdown.map((pred, j) => <BreakdownRow key={j} pred={pred} />)}
+          {e.groupBonuses?.map((bonus, j) => <GroupBonusRow key={j} bonus={bonus} />)}
+        </>
+      )}
     />
   );
 }

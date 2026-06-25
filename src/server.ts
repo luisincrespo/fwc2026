@@ -330,8 +330,22 @@ app.get('/api/daily-recap', async (req, res) => {
     );
     const bracketMap = new Map(brackets.map((b) => [b.id, b.preds]));
 
+    // Find groups whose positions lock in today (all 6 games complete, last game is today).
+    const groupGamesMap = new Map<string, typeof allGames>();
+    for (const g of allGames) {
+      if (!g.group_letter || g.stage !== 'group') continue;
+      if (!groupGamesMap.has(g.group_letter)) groupGamesMap.set(g.group_letter, []);
+      groupGamesMap.get(g.group_letter)!.push(g);
+    }
+    const lockedInToday = [...groupGamesMap.entries()].filter(([, games]) =>
+      games.length === 6 &&
+      games.every((g) => g.is_completed && g.actual_home_score != null) &&
+      games.some((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
+    );
+
     const withToday = leaderboard.map((p) => {
       const preds = bracketMap.get(p.id) ?? [];
+      const predByGameId = new Map(preds.map((pr) => [pr.game_id, pr]));
       let pointsToday = 0;
       const breakdown = [];
       for (const game of todayCompleted) {
@@ -359,7 +373,25 @@ app.get('/api/daily-recap', async (req, res) => {
           points,
         });
       }
-      return { ...p, pointsToday, breakdown, preTodayPoints: p.total_points - pointsToday };
+
+      // Compute L bonus for each group that locked in today.
+      const groupBonuses: { group: string; points: number; correct: number }[] = [];
+      for (const [grpLetter, grpGames] of lockedInToday) {
+        const predRows = grpGames.map((g) => {
+          const pr = predByGameId.get(g.game_id);
+          if (!pr || pr.predicted_home == null || pr.predicted_away == null) return null;
+          return { hf: g.home_flag, af: g.away_flag, hs: pr.predicted_home, as_: pr.predicted_away };
+        });
+        if (predRows.some((r) => r == null)) continue;
+        const actual  = computeGroupStandings(grpGames.map((g) => ({ hf: g.home_flag, af: g.away_flag, hs: g.actual_home_score!, as_: g.actual_away_score! })));
+        const implied = computeGroupStandings(predRows as Array<{ hf: string; af: string; hs: number; as_: number }>);
+        const correct = actual.filter((flag, i) => implied[i] === flag).length;
+        const lBonus  = correct * 5;
+        groupBonuses.push({ group: grpLetter, points: lBonus, correct });
+        pointsToday += lBonus;
+      }
+
+      return { ...p, pointsToday, breakdown, groupBonuses, preTodayPoints: p.total_points - pointsToday };
     });
 
     const preSorted = [...withToday].sort(
@@ -390,6 +422,7 @@ app.get('/api/daily-recap', async (req, res) => {
           pointsToday: entry.pointsToday,
           totalPoints: p.total_points,
           breakdown: entry.breakdown,
+          groupBonuses: entry.groupBonuses,
         };
       }),
     });
@@ -602,6 +635,38 @@ app.get('/api/upcoming/:id', async (req, res) => {
   }
 });
 
+// Games before 06:00 UTC belong to the previous calendar date for users in the Americas.
+// WC 2026 late games (e.g. 01:00 UTC) are evening games in every American timezone.
+function gameDate(scheduledAt: string): string {
+  const d = new Date(scheduledAt);
+  if (d.getUTCHours() < 6) d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// End of a "local game day": next UTC midnight + 6h covers late evening games.
+function endOfGameDay(date: string): Date {
+  return new Date(new Date(`${date}T00:00:00.000Z`).getTime() + 30 * 60 * 60 * 1000 - 1);
+}
+
+// Compute group standings (1st→4th) from a list of game score rows.
+// Used both in buildInsights (L bonus trajectory) and daily-recap (L bonus today).
+function computeGroupStandings(games: Array<{ hf: string; af: string; hs: number; as_: number }>): string[] {
+  const pts: Record<string, number> = {};
+  const gd:  Record<string, number> = {};
+  const gs:  Record<string, number> = {};
+  for (const g of games) {
+    pts[g.hf] ??= 0; pts[g.af] ??= 0;
+    gd[g.hf]  ??= 0; gd[g.af]  ??= 0;
+    gs[g.hf]  ??= 0; gs[g.af]  ??= 0;
+    if (g.hs > g.as_)      pts[g.hf] += 3;
+    else if (g.hs < g.as_) pts[g.af] += 3;
+    else { pts[g.hf] += 1; pts[g.af] += 1; }
+    gd[g.hf] += g.hs - g.as_; gd[g.af] += g.as_ - g.hs;
+    gs[g.hf] += g.hs;          gs[g.af] += g.as_;
+  }
+  return Object.keys(pts).sort((a, b) => pts[b] - pts[a] || gd[b] - gd[a] || gs[b] - gs[a]);
+}
+
 async function buildInsights(bust: boolean, altE = false) {
   if (bust) bustQuinielaCache();
 
@@ -647,10 +712,10 @@ async function buildInsights(bust: boolean, altE = false) {
     }
   }
 
-    // Collect all distinct game dates from breakdown entries
+    // Collect all distinct game dates from breakdown entries, using local game-day date.
     const allDateSet = new Set<string>();
     for (const p of participants) {
-      for (const g of p.breakdown) allDateSet.add(g.scheduled_at.slice(0, 10));
+      for (const g of p.breakdown) allDateSet.add(gameDate(g.scheduled_at));
     }
     const gameDates = [...allDateSet].sort();
 
@@ -663,29 +728,12 @@ async function buildInsights(bust: boolean, altE = false) {
     const gameGroupMap = new Map(
       allGames.filter((g) => g.group_letter).map((g) => [g.game_id, g.group_letter!])
     );
-    // Last game date per group = when that group's positions are locked in
+    // Last game date per group = when that group's positions are locked in (local game-day).
     const groupLockDate = new Map<string, string>();
     for (const g of allGames) {
       if (!g.group_letter || g.stage !== 'group') continue;
-      const date = g.scheduled_at.slice(0, 10);
+      const date = gameDate(g.scheduled_at);
       if (date > (groupLockDate.get(g.group_letter) ?? '')) groupLockDate.set(g.group_letter, date);
-    }
-
-    function groupStandings(games: Array<{ hf: string; af: string; hs: number; as_: number }>): string[] {
-      const pts: Record<string, number> = {};
-      const gd:  Record<string, number> = {};
-      const gs:  Record<string, number> = {};
-      for (const g of games) {
-        pts[g.hf] ??= 0; pts[g.af] ??= 0;
-        gd[g.hf]  ??= 0; gd[g.af]  ??= 0;
-        gs[g.hf]  ??= 0; gs[g.af]  ??= 0;
-        if (g.hs > g.as_)      pts[g.hf] += 3;
-        else if (g.hs < g.as_) pts[g.af] += 3;
-        else { pts[g.hf] += 1; pts[g.af] += 1; }
-        gd[g.hf] += g.hs - g.as_; gd[g.af] += g.as_ - g.hs;
-        gs[g.hf] += g.hs;          gs[g.af] += g.as_;
-      }
-      return Object.keys(pts).sort((a, b) => pts[b] - pts[a] || gd[b] - gd[a] || gs[b] - gs[a]);
     }
 
     const bonusByParticipant = new Map<number, Map<string, number>>();
@@ -706,8 +754,8 @@ async function buildInsights(bust: boolean, altE = false) {
           if (!lockDate) continue;
           const toRow = (g: typeof entries[0], hs: number, as_: number) =>
             ({ hf: g.home_code, af: g.away_code, hs, as_ });
-          const actual  = groupStandings(entries.map((g) => toRow(g, g.actual_home, g.actual_away)));
-          const implied = groupStandings(entries.map((g) => toRow(g, g.predicted_home, g.predicted_away)));
+          const actual  = computeGroupStandings(entries.map((g) => toRow(g, g.actual_home, g.actual_away)));
+          const implied = computeGroupStandings(entries.map((g) => toRow(g, g.predicted_home, g.predicted_away)));
           const lBonus  = actual.reduce((sum, flag, i) => sum + (implied[i] === flag ? 5 : 0), 0);
           if (lBonus > 0) byDate.set(lockDate, (byDate.get(lockDate) ?? 0) + lBonus);
         }
@@ -717,7 +765,7 @@ async function buildInsights(bust: boolean, altE = false) {
 
     // For each game date, compute rank at the end of that day (cumulative).
     function rankAtCutoff(cutoffDate: string): Map<number, number> {
-      const cutoff = new Date(`${cutoffDate}T23:59:59.999Z`);
+      const cutoff = endOfGameDay(cutoffDate);
       const pts = participants.map((p) => {
         const byDate = bonusByParticipant.get(p.id)!;
         let bonus = 0;
@@ -775,9 +823,11 @@ async function buildInsights(bust: boolean, altE = false) {
         drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
         avgGoals,
         ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
-        pointsPerDay: gameDates.map((date) =>
-          bd.filter((g) => g.scheduled_at.slice(0, 10) === date).reduce((s, g) => s + effectivePts(g), 0),
-        ),
+        pointsPerDay: gameDates.map((date) => {
+          const gamePts = bd.filter((g) => gameDate(g.scheduled_at) === date).reduce((s, g) => s + effectivePts(g), 0);
+          const bonusPts = bonusByParticipant.get(p.id)?.get(date) ?? 0;
+          return gamePts + bonusPts;
+        }),
       };
     });
 

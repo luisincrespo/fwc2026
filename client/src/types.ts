@@ -117,6 +117,12 @@ export interface DailyBreakdown {
   points: number;
 }
 
+export interface GroupBonus {
+  group: string;
+  points: number;
+  correct: number;
+}
+
 export interface DailyEntry {
   rank: number;
   preTodayRank: number;
@@ -126,6 +132,7 @@ export interface DailyEntry {
   pointsToday: number;
   totalPoints: number;
   breakdown: DailyBreakdown[];
+  groupBonuses?: GroupBonus[];
 }
 
 export interface DailyRecapResponse {
