@@ -805,8 +805,6 @@ async function buildInsights(bust: boolean, altE = false) {
         ...nonCompleted.map((g) => ({ h: g.predicted_home!, a: g.predicted_away! })),
       ];
       const draws = allPreds.filter((x) => x.h === x.a).length;
-      const totalGoals = allPreds.reduce((s, x) => s + x.h + x.a, 0);
-      const avgGoals = allPreds.length > 0 ? Math.round((totalGoals / allPreds.length) * 10) / 10 : 0;
 
       return {
         id: p.id,
@@ -821,7 +819,6 @@ async function buildInsights(bust: boolean, altE = false) {
         drawPredictions: draws,
         totalPredictions: allPreds.length,
         drawPct: allPreds.length > 0 ? Math.round(draws / allPreds.length * 100) : 0,
-        avgGoals,
         ranks: rankMaps.map((m) => m.get(p.id) ?? 0),
         pointsPerDay: gameDates.map((date) => {
           const gamePts = bd.filter((g) => gameDate(g.scheduled_at) === date).reduce((s, g) => s + effectivePts(g), 0);
@@ -948,16 +945,6 @@ async function buildInsights(bust: boolean, altE = false) {
         id: 'contrarian', emoji: '🤠', name: 'Maverick',
         description: 'Most correct picks that went against the crowd',
         winners: topWinners(contraryStats, (p) => p.count, (p) => `${p.count} picks`),
-      },
-      {
-        id: 'goalfest', emoji: '🎆', name: 'Goalfest',
-        description: 'Highest average goals predicted per match',
-        winners: topWinners(badgeResult, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`),
-      },
-      {
-        id: 'safe_keeper', emoji: '🧤', name: 'Safe Keeper',
-        description: 'Lowest average goals predicted per match',
-        winners: bottomWinners(badgeResult, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`, Infinity),
       },
       {
         id: 'rising_star', emoji: '📈', name: 'Rising Star',
