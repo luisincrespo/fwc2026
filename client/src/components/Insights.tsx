@@ -3,7 +3,6 @@ import { COLOR_EXACT, COLOR_CORRECT, COLOR_MISS, COLOR_MARGIN } from '../lib/col
 import type { InsightsResponse, ParticipantInsight } from '../types';
 import { RankChart } from './RankChart';
 import { Badges } from './Badges';
-import { FunFacts } from './FunFacts';
 import { PointsPerDayChart } from './PointsPerDayChart';
 
 type AccuracySort = 'exact' | 'accuracy';
@@ -99,7 +98,6 @@ export function Insights({ data, loading }: Props) {
 
   return (
     <div>
-      <FunFacts facts={data.funFacts} />
       <Badges badges={data.badges} />
 
       <div style={{ marginBottom: 20 }}>

@@ -29,6 +29,8 @@ export interface BreakdownEntry {
   scheduled_at: string;
   home_team: string;
   away_team: string;
+  home_code: string;
+  away_code: string;
   predicted_home: number;
   predicted_away: number;
   actual_home: number;
@@ -106,6 +108,8 @@ export async function getLeaderboardWithBreakdown(): Promise<{
           scheduled_at: r['scheduled_at'] as string,
           home_team: r['home_team'] as string,
           away_team: r['away_team'] as string,
+          home_code: r['home_code'] as string,
+          away_code: r['away_code'] as string,
           predicted_home: r['predicted_home'] as number,
           predicted_away: r['predicted_away'] as number,
           actual_home: r['actual_home'] as number,
@@ -174,6 +178,7 @@ export async function getBracket(participantId: number): Promise<Prediction[]> {
 export interface QuinielaGame {
   game_id: number;
   stage: string;
+  group_letter: string | null;
   scheduled_at: string;
   is_completed: number;
   actual_home_score: number | null;
@@ -193,6 +198,7 @@ export async function getGames(): Promise<QuinielaGame[]> {
   const games: QuinielaGame[] = res.data.games.map((g: Record<string, unknown>) => ({
     game_id: g['game_id'] as number,
     stage: g['stage'] as string,
+    group_letter: (g['group_letter'] as string | null) ?? null,
     scheduled_at: g['scheduled_at'] as string,
     is_completed: g['is_completed'] as number,
     actual_home_score: g['actual_home_score'] as number | null,

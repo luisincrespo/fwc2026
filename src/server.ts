@@ -654,15 +654,83 @@ async function buildInsights(bust: boolean, altE = false) {
     }
     const gameDates = [...allDateSet].sort();
 
-    // For each game date, compute rank at the end of that day (cumulative)
+    // Group position bonus (rule 'L'): +5 per correctly predicted group table position.
+    // Quiniela derives each participant's predicted standings from their game score
+    // predictions — no separate group-position prediction exists. We replicate that
+    // calculation here so we know exactly how many L points each participant earned
+    // from each group, and when (the date of the group's final-round games).
+    // L bonus only applies to the non-altE trajectory (altE leaderboard excludes it).
+    const gameGroupMap = new Map(
+      allGames.filter((g) => g.group_letter).map((g) => [g.game_id, g.group_letter!])
+    );
+    // Last game date per group = when that group's positions are locked in
+    const groupLockDate = new Map<string, string>();
+    for (const g of allGames) {
+      if (!g.group_letter || g.stage !== 'group') continue;
+      const date = g.scheduled_at.slice(0, 10);
+      if (date > (groupLockDate.get(g.group_letter) ?? '')) groupLockDate.set(g.group_letter, date);
+    }
+
+    function groupStandings(games: Array<{ hf: string; af: string; hs: number; as_: number }>): string[] {
+      const pts: Record<string, number> = {};
+      const gd:  Record<string, number> = {};
+      const gs:  Record<string, number> = {};
+      for (const g of games) {
+        pts[g.hf] ??= 0; pts[g.af] ??= 0;
+        gd[g.hf]  ??= 0; gd[g.af]  ??= 0;
+        gs[g.hf]  ??= 0; gs[g.af]  ??= 0;
+        if (g.hs > g.as_)      pts[g.hf] += 3;
+        else if (g.hs < g.as_) pts[g.af] += 3;
+        else { pts[g.hf] += 1; pts[g.af] += 1; }
+        gd[g.hf] += g.hs - g.as_; gd[g.af] += g.as_ - g.hs;
+        gs[g.hf] += g.hs;          gs[g.af] += g.as_;
+      }
+      return Object.keys(pts).sort((a, b) => pts[b] - pts[a] || gd[b] - gd[a] || gs[b] - gs[a]);
+    }
+
+    const bonusByParticipant = new Map<number, Map<string, number>>();
+    for (const p of participants) {
+      const byDate = new Map<string, number>();
+      if (!altE) {
+        // Cluster this participant's breakdown by group
+        const entriesByGroup = new Map<string, typeof p.breakdown>();
+        for (const g of p.breakdown) {
+          const grp = gameGroupMap.get(g.game_id);
+          if (!grp) continue;
+          if (!entriesByGroup.has(grp)) entriesByGroup.set(grp, []);
+          entriesByGroup.get(grp)!.push(g);
+        }
+        for (const [grp, entries] of entriesByGroup) {
+          if (entries.length !== 6) continue; // group not fully complete yet
+          const lockDate = groupLockDate.get(grp);
+          if (!lockDate) continue;
+          const toRow = (g: typeof entries[0], hs: number, as_: number) =>
+            ({ hf: g.home_code, af: g.away_code, hs, as_ });
+          const actual  = groupStandings(entries.map((g) => toRow(g, g.actual_home, g.actual_away)));
+          const implied = groupStandings(entries.map((g) => toRow(g, g.predicted_home, g.predicted_away)));
+          const lBonus  = actual.reduce((sum, flag, i) => sum + (implied[i] === flag ? 5 : 0), 0);
+          if (lBonus > 0) byDate.set(lockDate, (byDate.get(lockDate) ?? 0) + lBonus);
+        }
+      }
+      bonusByParticipant.set(p.id, byDate);
+    }
+
+    // For each game date, compute rank at the end of that day (cumulative).
     function rankAtCutoff(cutoffDate: string): Map<number, number> {
       const cutoff = new Date(`${cutoffDate}T23:59:59.999Z`);
-      const pts = participants.map((p) => ({
-        id: p.id,
-        points: p.breakdown
-          .filter((g) => new Date(g.scheduled_at) <= cutoff)
-          .reduce((sum, g) => sum + effectivePts(g), 0),
-      }));
+      const pts = participants.map((p) => {
+        const byDate = bonusByParticipant.get(p.id)!;
+        let bonus = 0;
+        for (const [date, b] of byDate) {
+          if (date <= cutoffDate) bonus += b;
+        }
+        return {
+          id: p.id,
+          points: p.breakdown
+            .filter((g) => new Date(g.scheduled_at) <= cutoff)
+            .reduce((sum, g) => sum + effectivePts(g), 0) + bonus,
+        };
+      });
       const sorted = [...pts].sort((a, b) => b.points - a.points);
       const map = new Map<number, number>();
       for (let i = 0; i < sorted.length; i++) {
@@ -714,6 +782,11 @@ async function buildInsights(bust: boolean, altE = false) {
     });
 
     // Badge helpers
+    // Excluded from badges: intentionally bad predictions would always win negative badges.
+    const BADGE_EXCLUDED = new Set(['Miguel Guareschi']);
+    const badgeParticipants = participants.filter((p) => !BADGE_EXCLUDED.has(p.name));
+    const badgeResult = result.filter((p) => !BADGE_EXCLUDED.has(p.name));
+
     const outcomeOf = (h: number, a: number): 'H' | 'D' | 'A' => h > a ? 'H' : h < a ? 'A' : 'D';
 
     type Winner = { id: number; name: string; detail?: string };
@@ -747,7 +820,7 @@ async function buildInsights(bust: boolean, altE = false) {
       majorityMap.set(gid, top);
     }
 
-    const contraryStats = participants.map((p) => ({
+    const contraryStats = badgeParticipants.map((p) => ({
       id: p.id, name: p.name,
       count: p.breakdown.filter((g) => {
         const myO = outcomeOf(g.predicted_home, g.predicted_away);
@@ -755,14 +828,13 @@ async function buildInsights(bust: boolean, altE = false) {
       }).length,
     }));
 
-
     const last3Dates = new Set(gameDates.slice(-3));
-    const onFireStats = participants.map((p) => ({
+    const onFireStats = badgeParticipants.map((p) => ({
       id: p.id, name: p.name,
       pts: p.breakdown.filter((g) => last3Dates.has(g.scheduled_at.slice(0, 10))).reduce((s, g) => s + effectivePts(g), 0),
     }));
 
-    const perfectDayStats = participants.map((p) => {
+    const perfectDayStats = badgeParticipants.map((p) => {
       const byDate = new Map<string, typeof p.breakdown>();
       for (const g of p.breakdown) {
         const d = g.scheduled_at.slice(0, 10);
@@ -775,13 +847,13 @@ async function buildInsights(bust: boolean, altE = false) {
 
     const lookbackCount = Math.min(3, rankMaps.length - 1);
     const lookbackIdx = rankMaps.length - 1 - lookbackCount;
-    const trajectoryStats = result.map((p) => {
+    const trajectoryStats = badgeResult.map((p) => {
       const currentRank = p.ranks[p.ranks.length - 1] ?? 0;
       const pastRank = p.ranks[lookbackIdx] ?? currentRank;
       return { id: p.id, name: p.name, rise: pastRank - currentRank, drop: currentRank - pastRank, pastRank, currentRank };
     });
 
-    const daysAtTopStats = result.map((p) => ({
+    const daysAtTopStats = badgeResult.map((p) => ({
       id: p.id, name: p.name,
       days: rankMaps.filter((m) => m.get(p.id) === 1).length,
     }));
@@ -790,7 +862,7 @@ async function buildInsights(bust: boolean, altE = false) {
       {
         id: 'leader', emoji: '👑', name: 'Leader',
         description: 'Currently sitting at #1',
-        winners: result.filter((p) => p.currentRank === 1).map(({ id, name }) => ({ id, name })),
+        winners: badgeResult.filter((p) => p.currentRank === 1).map(({ id, name }) => ({ id, name })),
       },
       {
         id: 'dominant', emoji: '⭐', name: 'Dominant',
@@ -800,12 +872,12 @@ async function buildInsights(bust: boolean, altE = false) {
       {
         id: 'sniper', emoji: '🎯', name: 'Sniper',
         description: 'Most exact score predictions',
-        winners: topWinners(result, (p) => p.exact, (p) => `${p.exact} exact`),
+        winners: topWinners(badgeResult, (p) => p.exact, (p) => `${p.exact} exact`),
       },
       {
         id: 'analyst', emoji: '🧠', name: 'Analyst',
         description: 'Highest outcome accuracy (min 5 games)',
-        winners: topWinners(result.filter((p) => p.gamesPlayed >= 5), (p) => p.accuracyPct, (p) => `${p.accuracyPct}%`),
+        winners: topWinners(badgeResult.filter((p) => p.gamesPlayed >= 5), (p) => p.accuracyPct, (p) => `${p.accuracyPct}%`),
       },
       {
         id: 'on_fire', emoji: '🔥', name: 'On Fire',
@@ -820,7 +892,7 @@ async function buildInsights(bust: boolean, altE = false) {
       {
         id: 'peacemaker', emoji: '🕊️', name: 'Peacemaker',
         description: 'Highest % of draw predictions',
-        winners: topWinners(result, (p) => p.drawPct, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
+        winners: topWinners(badgeResult, (p) => p.drawPct, (p) => `${p.drawPredictions} draws (${p.drawPct}%)`),
       },
       {
         id: 'contrarian', emoji: '🤠', name: 'Maverick',
@@ -830,12 +902,12 @@ async function buildInsights(bust: boolean, altE = false) {
       {
         id: 'goalfest', emoji: '🎆', name: 'Goalfest',
         description: 'Highest average goals predicted per match',
-        winners: topWinners(result, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`),
+        winners: topWinners(badgeResult, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`),
       },
       {
         id: 'safe_keeper', emoji: '🧤', name: 'Safe Keeper',
         description: 'Lowest average goals predicted per match',
-        winners: bottomWinners(result, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`, Infinity),
+        winners: bottomWinners(badgeResult, (p) => p.avgGoals, (p) => `${p.avgGoals} avg goals`, Infinity),
       },
       {
         id: 'rising_star', emoji: '📈', name: 'Rising Star',
@@ -854,65 +926,7 @@ async function buildInsights(bust: boolean, altE = false) {
       },
     ];
 
-    // Fun facts
-    const scorelineCounts = new Map<string, number>();
-    const gameStatsMap = new Map<number, { home: string; away: string; correct: number; total: number; totalPts: number }>();
-    for (const p of participants) {
-      for (const g of p.breakdown) {
-        const key = `${g.predicted_home}–${g.predicted_away}`;
-        scorelineCounts.set(key, (scorelineCounts.get(key) ?? 0) + 1);
-        if (!gameStatsMap.has(g.game_id)) {
-          gameStatsMap.set(g.game_id, { home: g.home_team, away: g.away_team, correct: 0, total: 0, totalPts: 0 });
-        }
-        const s = gameStatsMap.get(g.game_id)!;
-        s.total++;
-        if (g.categories_awarded.includes('A') || g.categories_awarded.includes('D')) s.correct++;
-        s.totalPts += effectivePts(g);
-      }
-    }
-
-    const totalPredictions = [...scorelineCounts.values()].reduce((s, n) => s + n, 0);
-    const [topScoreline, topScorelineCount] = [...scorelineCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
-    const scorelinePct = totalPredictions > 0 && topScorelineCount ? Math.round(topScorelineCount / totalPredictions * 100) : 0;
-
-    const gameList = [...gameStatsMap.entries()].map(([id, s]) => ({
-      id,
-      name: `${s.home} vs ${s.away}`,
-      accuracyPct: s.total > 0 ? Math.round(s.correct / s.total * 100) : 0,
-      avgPts: s.total > 0 ? Math.round(s.totalPts / s.total * 10) / 10 : 0,
-    }));
-    const byAccuracy = [...gameList].sort((a, b) => a.accuracyPct - b.accuracyPct);
-    const hardestGame = byAccuracy[0];
-    const easiestGame = byAccuracy[byAccuracy.length - 1];
-    const bestScoringGame = [...gameList].sort((a, b) => b.avgPts - a.avgPts)[0];
-
-    const funFacts: { id: string; emoji: string; label: string; value: string }[] = [];
-    if (topScoreline) {
-      funFacts.push({
-        id: 'top_scoreline', emoji: '⚽', label: 'Most predicted scoreline',
-        value: `${topScoreline} — chosen in ${scorelinePct}% of all predictions`,
-      });
-    }
-    if (hardestGame) {
-      funFacts.push({
-        id: 'hardest_game', emoji: '💀', label: 'Hardest game to predict',
-        value: `${hardestGame.name} — only ${hardestGame.accuracyPct}% got the outcome right`,
-      });
-    }
-    if (easiestGame && easiestGame.id !== hardestGame?.id) {
-      funFacts.push({
-        id: 'easiest_game', emoji: '🎁', label: 'Easiest game to predict',
-        value: `${easiestGame.name} — ${easiestGame.accuracyPct}% got the outcome right`,
-      });
-    }
-    if (bestScoringGame) {
-      funFacts.push({
-        id: 'best_scoring', emoji: '💰', label: 'Best scoring game',
-        value: `${bestScoringGame.name} — ${bestScoringGame.avgPts} avg pts per participant`,
-      });
-    }
-
-    return { updatedAt: new Date().toISOString(), participants: result, gameDates, badges, funFacts };
+    return { updatedAt: new Date().toISOString(), participants: result, gameDates, badges };
 }
 
 app.get('/api/insights', async (req, res) => {
@@ -1205,6 +1219,20 @@ app.get('/api/alt-leaderboard', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to build alt leaderboard' });
+  }
+});
+
+app.get('/api/debug-scores-raw', async (_req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const API_KEY = process.env.QUINIELA_POPULAR_API_KEY!;
+    const scoresRes = await axios.get(`https://www.quinielapopular.com/api/play/${API_KEY}/scores`);
+    // Return first participant only to avoid a huge payload
+    const first = scoresRes.data?.leaderboard?.[0];
+    res.json({ first, keys: first ? Object.keys(first) : [] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: String(err) });
   }
 });
 
