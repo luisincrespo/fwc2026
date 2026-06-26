@@ -31,6 +31,7 @@ describe('espnAbbrToIso2', () => {
   it('maps European teams whose first-2-chars would be wrong', () => {
     expect(espnAbbrToIso2('SRB')).toBe('rs');  // 'sr' would be Suriname!
     expect(espnAbbrToIso2('POL')).toBe('pl');  // 'po' ≠ 'pl'
+    expect(espnAbbrToIso2('TUR')).toBe('tr');  // 'tu' ≠ 'tr'
     expect(espnAbbrToIso2('UKR')).toBe('ua');  // 'uk' ≠ 'ua'
   });
 
