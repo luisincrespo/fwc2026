@@ -93,23 +93,17 @@ function parseEvents(events: Record<string, unknown>[]): EspnMatch[] {
   return matches;
 }
 
-export async function getEspnMatches(): Promise<EspnMatch[]> {
+export async function getEspnMatches(extraDates: string[] = []): Promise<EspnMatch[]> {
   const today = utcDateStr(0);
   const yesterday = utcDateStr(-1);
-  const cacheKey = `espn:scoreboard:${today}`;
+  // Deduplicate: always fetch yesterday+today, plus any extra dates the caller needs
+  const dates = [...new Set([yesterday, today, ...extraDates])].sort();
+  const cacheKey = `espn:scoreboard:${dates.join(',')}`;
   const cached = cache.get<EspnMatch[]>(cacheKey);
   if (cached) return cached;
 
-  // Fetch both UTC dates so local evenings that cross midnight UTC are covered
-  const [resToday, resYesterday] = await Promise.all([
-    axios.get(`${BASE}?dates=${today}`),
-    axios.get(`${BASE}?dates=${yesterday}`),
-  ]);
-
-  const matches = deduplicateEspnMatches([
-    ...parseEvents(resToday.data.events ?? []),
-    ...parseEvents(resYesterday.data.events ?? []),
-  ]);
+  const responses = await Promise.all(dates.map((d) => axios.get(`${BASE}?dates=${d}`)));
+  const matches = deduplicateEspnMatches(responses.flatMap((r) => parseEvents(r.data.events ?? [])));
 
   cache.set(cacheKey, matches, ONE_MIN);
   return matches;

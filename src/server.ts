@@ -435,8 +435,17 @@ app.get('/api/daily-recap', async (req, res) => {
 app.get('/api/schedule', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();
+
+    // Pre-compute the UTC date(s) the client is requesting so we can fetch
+    // ESPN data for those dates (quiniela lags in populating upcoming KO teams).
+    const preFrom = req.query['from'] as string | undefined;
+    const preTo = req.query['to'] as string | undefined;
+    const extraEspnDates: string[] = [];
+    if (preFrom) extraEspnDates.push(new Date(preFrom).toISOString().slice(0, 10).replace(/-/g, ''));
+    if (preTo)   extraEspnDates.push(new Date(preTo).toISOString().slice(0, 10).replace(/-/g, ''));
+
     const [allGames, espnMatches, { leaderboard: participants, rules }] = await Promise.all([
-      getGames(), getEspnMatches(), getOfficialLeaderboard(),
+      getGames(), getEspnMatches(extraEspnDates), getOfficialLeaderboard(),
     ]);
 
     let from: Date, to: Date;
@@ -454,11 +463,13 @@ app.get('/api/schedule', async (req, res) => {
         to = new Date(req.query['to'] as string);
       }
     } else {
-      from = new Date((req.query['from'] as string) || new Date().toISOString().slice(0, 10));
-      to = new Date((req.query['to'] as string) || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
+      from = new Date(preFrom || new Date().toISOString().slice(0, 10));
+      to = new Date(preTo || new Date().toISOString().slice(0, 10) + 'T23:59:59.999Z');
     }
 
     const espnByFlags = buildEspnByFlags(espnMatches);
+    // Time-based fallback for KO games where quiniela hasn't populated teams yet.
+    const espnByTime = new Map(espnMatches.map((e) => [e.kickoffUtc.slice(0, 16), e]));
 
     const todayGames = allGames
       .filter((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
@@ -505,12 +516,17 @@ app.get('/api/schedule', async (req, res) => {
       else if (elapsedMin >= 0) status = 'LIVE';
       else status = 'UPCOMING';
 
-      const espn = g.home_flag && g.away_flag
+      const espnByFlag = g.home_flag && g.away_flag
         ? espnByFlags.get(`${g.home_flag.toLowerCase()}|${g.away_flag.toLowerCase()}`)
         : undefined;
+      // Fall back to time-based lookup for KO games where quiniela hasn't filled in teams yet
+      const espn = espnByFlag ?? espnByTime.get(g.scheduled_at.slice(0, 16));
       if (espn?.minute === 'FT') status = 'FINISHED';
 
-      const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
+      // Only flip when quiniela has known flags — for null-flag KO games use ESPN order as-is
+      const flipped = espn && g.home_flag
+        ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag)
+        : false;
 
       let goals: EspnGoal[] = [];
       let homeGoals: number | null = g.actual_home_score;
@@ -538,11 +554,17 @@ app.get('/api/schedule', async (req, res) => {
         perfMap.set(g.game_id, { exact: [], correct: [], miss: [], total: 0 });
       }
 
+      // For KO games quiniela hasn't populated yet, fall back to ESPN team info
+      const homeTeam = g.home_team_name ?? (flipped ? espn?.espnAwayTeam : espn?.espnHomeTeam) ?? null;
+      const awayTeam = g.away_team_name ?? (flipped ? espn?.espnHomeTeam : espn?.espnAwayTeam) ?? null;
+      const homeCode = g.home_flag ?? (espn && !flipped ? espnAbbrToIso2(espn.espnHomeAbbr) : espn ? espnAbbrToIso2(espn.espnAwayAbbr) : null);
+      const awayCode = g.away_flag ?? (espn && !flipped ? espnAbbrToIso2(espn.espnAwayAbbr) : espn ? espnAbbrToIso2(espn.espnHomeAbbr) : null);
+
       return {
-        homeTeam: g.home_team_name,
-        awayTeam: g.away_team_name,
-        homeCode: g.home_flag,
-        awayCode: g.away_flag,
+        homeTeam,
+        awayTeam,
+        homeCode,
+        awayCode,
         kickoffUtc: g.scheduled_at,
         status,
         homeGoals,
