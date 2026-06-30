@@ -203,10 +203,11 @@ export async function getGames(): Promise<QuinielaGame[]> {
     is_completed: g['is_completed'] as number,
     actual_home_score: g['actual_home_score'] as number | null,
     actual_away_score: g['actual_away_score'] as number | null,
-    home_team_name: g['home_team_name'] as string,
-    away_team_name: g['away_team_name'] as string,
-    home_flag: g['home_flag'] as string,
-    away_flag: g['away_flag'] as string,
+    // KO games use resolved_* when the matchup is known but not yet started
+    home_team_name: (g['home_team_name'] ?? g['resolved_home_name']) as string,
+    away_team_name: (g['away_team_name'] ?? g['resolved_away_name']) as string,
+    home_flag: (g['home_flag'] ?? g['resolved_home_flag']) as string,
+    away_flag: (g['away_flag'] ?? g['resolved_away_flag']) as string,
   }));
 
   cache.set(cacheKey, games, FIVE_MIN);

@@ -468,8 +468,6 @@ app.get('/api/schedule', async (req, res) => {
     }
 
     const espnByFlags = buildEspnByFlags(espnMatches);
-    // Time-based fallback for KO games where quiniela hasn't populated teams yet.
-    const espnByTime = new Map(espnMatches.map((e) => [e.kickoffUtc.slice(0, 16), e]));
 
     const todayGames = allGames
       .filter((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
@@ -516,17 +514,12 @@ app.get('/api/schedule', async (req, res) => {
       else if (elapsedMin >= 0) status = 'LIVE';
       else status = 'UPCOMING';
 
-      const espnByFlag = g.home_flag && g.away_flag
+      const espn = g.home_flag && g.away_flag
         ? espnByFlags.get(`${g.home_flag.toLowerCase()}|${g.away_flag.toLowerCase()}`)
         : undefined;
-      // Fall back to time-based lookup for KO games where quiniela hasn't filled in teams yet
-      const espn = espnByFlag ?? espnByTime.get(g.scheduled_at.slice(0, 16));
       if (espn?.minute === 'FT') status = 'FINISHED';
 
-      // Only flip when quiniela has known flags — for null-flag KO games use ESPN order as-is
-      const flipped = espn && g.home_flag
-        ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag)
-        : false;
+      const flipped = espn ? isEspnFlipped(espn.espnHomeAbbr, espn.espnAwayAbbr, g.home_flag) : false;
 
       let goals: EspnGoal[] = [];
       let homeGoals: number | null = g.actual_home_score;
@@ -554,17 +547,11 @@ app.get('/api/schedule', async (req, res) => {
         perfMap.set(g.game_id, { exact: [], correct: [], miss: [], total: 0 });
       }
 
-      // For KO games quiniela hasn't populated yet, fall back to ESPN team info
-      const homeTeam = g.home_team_name ?? (flipped ? espn?.espnAwayTeam : espn?.espnHomeTeam) ?? null;
-      const awayTeam = g.away_team_name ?? (flipped ? espn?.espnHomeTeam : espn?.espnAwayTeam) ?? null;
-      const homeCode = g.home_flag ?? (espn && !flipped ? espnAbbrToIso2(espn.espnHomeAbbr) : espn ? espnAbbrToIso2(espn.espnAwayAbbr) : null);
-      const awayCode = g.away_flag ?? (espn && !flipped ? espnAbbrToIso2(espn.espnAwayAbbr) : espn ? espnAbbrToIso2(espn.espnHomeAbbr) : null);
-
       return {
-        homeTeam,
-        awayTeam,
-        homeCode,
-        awayCode,
+        homeTeam: g.home_team_name,
+        awayTeam: g.away_team_name,
+        homeCode: g.home_flag,
+        awayCode: g.away_flag,
         kickoffUtc: g.scheduled_at,
         status,
         homeGoals,
