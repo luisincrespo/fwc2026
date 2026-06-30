@@ -14,6 +14,7 @@ interface Props {
   scoreLabel?: string;
   scoreHighlight?: string;
   colSpan?: number;
+  predictedPenalties?: 'home' | 'away';
   predictedHomeTeam?: string;
   predictedAwayTeam?: string;
   predictedHomeCode?: string;
@@ -24,11 +25,25 @@ export function MatchBreakdownRow({
   homeTeam, awayTeam, homeCode, awayCode,
   homeGoals, awayGoals, predictedHome, predictedAway,
   points, scoreLabel = 'Result', scoreHighlight, colSpan = 4,
+  predictedPenalties,
   predictedHomeTeam, predictedAwayTeam, predictedHomeCode, predictedAwayCode,
 }: Props) {
   const tierColor = points >= 11 ? COLOR_EXACT : points >= 3 ? COLOR_CORRECT : points > 0 ? COLOR_MARGIN : COLOR_MISS;
 
   const teamsMatch = !predictedHomeTeam || (predictedHomeTeam === homeTeam && predictedAwayTeam === awayTeam);
+
+  // Pen winner is relative to the predicted side (home/away)
+  const isDraw = predictedHome === predictedAway;
+  const penWinnerCode = predictedPenalties === 'home'
+    ? (predictedHomeCode ?? homeCode)
+    : predictedPenalties === 'away'
+      ? (predictedAwayCode ?? awayCode)
+      : null;
+  const penWinnerTeam = predictedPenalties === 'home'
+    ? (predictedHomeTeam ?? homeTeam)
+    : predictedPenalties === 'away'
+      ? (predictedAwayTeam ?? awayTeam)
+      : null;
 
   const center = (
     <span style={{ color: '#64748b', fontWeight: 500 }}>
@@ -53,9 +68,18 @@ export function MatchBreakdownRow({
               </div>
             )}
           </div>
-          <span style={{ width: 140, flexShrink: 0 }}>
-            Prediction:{' '}
-            <strong style={{ color: tierColor }}>{predictedHome}–{predictedAway}</strong>
+          <span style={{ width: 140, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span>
+              Prediction:{' '}
+              <strong style={{ color: tierColor }}>{predictedHome}–{predictedAway}</strong>
+            </span>
+            {isDraw && penWinnerCode && penWinnerTeam && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748b' }}>
+                Pen:
+                <img src={`https://flagcdn.com/20x15/${penWinnerCode}.png`} alt="" style={{ width: 14, height: 11, borderRadius: 1 }} />
+                {penWinnerTeam}
+              </span>
+            )}
           </span>
           <span style={{ width: 55, flexShrink: 0, textAlign: 'right', color: tierColor, fontWeight: 600 }}>
             {points > 0 ? `+${points} pts` : '0 pts'}

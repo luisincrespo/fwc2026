@@ -26,6 +26,7 @@ function PredictionRow({ pred, colSpan }: { pred: LivePrediction; colSpan: numbe
       scoreLabel={pred.isHypothetical ? 'Sim' : 'Live'}
       scoreHighlight={pred.isHypothetical ? COLOR_SIMULATION : undefined}
       colSpan={colSpan}
+      predictedPenalties={pred.predictedPenalties}
       predictedHomeTeam={pred.predictedHomeTeam}
       predictedAwayTeam={pred.predictedAwayTeam}
       predictedHomeCode={pred.predictedHomeCode}
@@ -62,8 +63,19 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
               </div>
             )}
           </div>
-          <span style={{ width: 140, flexShrink: 0 }}>
-            Prediction: <strong style={{ color: '#e2e8f0' }}>{pred.predicted_home}–{pred.predicted_away}</strong>
+          <span style={{ width: 140, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span>Prediction: <strong style={{ color: '#e2e8f0' }}>{pred.predicted_home}–{pred.predicted_away}</strong></span>
+            {pred.predicted_home === pred.predicted_away && pred.predicted_penalties && (() => {
+              const penCode = pred.predicted_penalties === 'home' ? pred.home_code : pred.away_code;
+              const penTeam = pred.predicted_penalties === 'home' ? pred.home_team : pred.away_team;
+              return penCode ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#64748b' }}>
+                  Pen:
+                  <img src={`https://flagcdn.com/20x15/${penCode}.png`} alt="" style={{ width: 14, height: 11, borderRadius: 1 }} />
+                  {penTeam}
+                </span>
+              ) : null;
+            })()}
           </span>
           <span style={{ width: 55, flexShrink: 0 }} />
         </div>

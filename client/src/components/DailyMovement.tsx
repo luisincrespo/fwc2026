@@ -22,6 +22,7 @@ function BreakdownRow({ pred }: { pred: DailyBreakdown }) {
       points={pred.points}
       scoreLabel="Result"
       colSpan={4}
+      predictedPenalties={pred.predictedPenalties}
       predictedHomeTeam={pred.predictedHomeTeam}
       predictedAwayTeam={pred.predictedAwayTeam}
       predictedHomeCode={pred.predictedHomeCode}

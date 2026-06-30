@@ -64,6 +64,7 @@ export interface LivePrediction {
   stage: 'group' | 'ko';
   points: number;
   isHypothetical?: boolean;
+  predictedPenalties?: 'home' | 'away';
   predictedHomeTeam?: string;
   predictedAwayTeam?: string;
   predictedHomeCode?: string;
@@ -119,6 +120,7 @@ export interface DailyBreakdown {
   predictedHome: number;
   predictedAway: number;
   points: number;
+  predictedPenalties?: 'home' | 'away';
   predictedHomeTeam?: string;
   predictedAwayTeam?: string;
   predictedHomeCode?: string;
@@ -187,6 +189,7 @@ export interface UpcomingPrediction {
   actual_away_code?: string;
   predicted_home: number;
   predicted_away: number;
+  predicted_penalties?: 'home' | 'away' | null;
   scheduled_at: string;
 }
 

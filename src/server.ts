@@ -188,11 +188,12 @@ app.get('/api/leaderboard', async (req, res) => {
           predictedAway: pred.predicted_away,
           stage: pred.stage,
           points,
+          predictedPenalties: pred.predicted_penalties ?? undefined,
           ...(predictedTeamsDiffer && {
             predictedHomeTeam: pred.home_team,
             predictedAwayTeam: pred.away_team,
-            predictedHomeCode: teamFlagMap.get(pred.home_team?.toLowerCase()) ?? '',
-            predictedAwayCode: teamFlagMap.get(pred.away_team?.toLowerCase()) ?? '',
+            predictedHomeCode: pred.home_flag || teamFlagMap.get(pred.home_team?.toLowerCase()) || '',
+            predictedAwayCode: pred.away_flag || teamFlagMap.get(pred.away_team?.toLowerCase()) || '',
           }),
         });
       }
@@ -401,12 +402,13 @@ app.get('/api/daily-recap', async (req, res) => {
           predictedHome: bracketPred.predicted_home,
           predictedAway: bracketPred.predicted_away,
           points,
+          predictedPenalties: bracketPred.predicted_penalties ?? undefined,
           categoriesAwarded: officialBd?.categories_awarded,
           ...(predictedTeamsDiffer && {
             predictedHomeTeam: bracketPred.home_team,
             predictedAwayTeam: bracketPred.away_team,
-            predictedHomeCode: teamFlagMapRecap.get(bracketPred.home_team?.toLowerCase()) ?? '',
-            predictedAwayCode: teamFlagMapRecap.get(bracketPred.away_team?.toLowerCase()) ?? '',
+            predictedHomeCode: bracketPred.home_flag || teamFlagMapRecap.get(bracketPred.home_team?.toLowerCase()) || '',
+            predictedAwayCode: bracketPred.away_flag || teamFlagMapRecap.get(bracketPred.away_team?.toLowerCase()) || '',
           }),
         });
       }
@@ -689,14 +691,15 @@ app.get('/api/upcoming/:id', async (req, res) => {
           game_id: u.game_id,
           home_team: b.home_team,
           away_team: b.away_team,
-          home_code: teamFlagMap.get(b.home_team?.toLowerCase()) ?? '',
-          away_code: teamFlagMap.get(b.away_team?.toLowerCase()) ?? '',
+          home_code: b.home_flag || teamFlagMap.get(b.home_team?.toLowerCase()) || '',
+          away_code: b.away_flag || teamFlagMap.get(b.away_team?.toLowerCase()) || '',
           actual_home_team: g.home_team_name,
           actual_away_team: g.away_team_name,
           actual_home_code: g.home_flag,
           actual_away_code: g.away_flag,
           predicted_home: u.predicted_home,
           predicted_away: u.predicted_away,
+          predicted_penalties: b.predicted_penalties ?? null,
           scheduled_at: g.scheduled_at,
         };
       })

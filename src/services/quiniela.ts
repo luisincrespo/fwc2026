@@ -12,8 +12,11 @@ export interface Prediction {
   stage: 'group' | 'ko';
   home_team: string;
   away_team: string;
+  home_flag: string;
+  away_flag: string;
   predicted_home: number | null;
   predicted_away: number | null;
+  predicted_penalties: 'home' | 'away' | null;
 }
 
 export interface ParticipantStanding {
@@ -37,6 +40,7 @@ export interface BreakdownEntry {
   actual_home: number;
   actual_away: number;
   points: number;
+  predicted_penalties: 'home' | 'away' | null;
   categories_awarded: string[];
 }
 
@@ -124,6 +128,7 @@ export async function getLeaderboardWithBreakdown(): Promise<{
           actual_home: r['actual_home'] as number,
           actual_away: r['actual_away'] as number,
           points: r['points'] as number,
+          predicted_penalties: (r['predicted_penalties'] as 'home' | 'away' | null) ?? null,
           categories_awarded: (r['categories_awarded'] as string[]) ?? [],
         };
       }),
@@ -183,8 +188,11 @@ export async function getBracket(participantId: number): Promise<Prediction[]> {
       stage: (p['stage'] as string) === 'group' ? 'group' : ('ko' as const),
       home_team: p['home_team_name'] as string,
       away_team: p['away_team_name'] as string,
+      home_flag: (p['home_flag'] as string) ?? '',
+      away_flag: (p['away_flag'] as string) ?? '',
       predicted_home: p['predicted_home_score'] as number | null,
       predicted_away: p['predicted_away_score'] as number | null,
+      predicted_penalties: (p['predicted_penalties'] as 'home' | 'away' | null) ?? null,
     }),
   );
 
