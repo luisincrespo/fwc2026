@@ -64,6 +64,10 @@ export interface LivePrediction {
   stage: 'group' | 'ko';
   points: number;
   isHypothetical?: boolean;
+  predictedHomeTeam?: string;
+  predictedAwayTeam?: string;
+  predictedHomeCode?: string;
+  predictedAwayCode?: string;
 }
 
 export interface LeaderboardEntry {
@@ -115,12 +119,24 @@ export interface DailyBreakdown {
   predictedHome: number;
   predictedAway: number;
   points: number;
+  predictedHomeTeam?: string;
+  predictedAwayTeam?: string;
+  predictedHomeCode?: string;
+  predictedAwayCode?: string;
+  categoriesAwarded?: string[];
 }
 
 export interface GroupBonus {
   group: string;
   points: number;
   correct: number;
+}
+
+export interface KoBonus {
+  category: string;
+  points: number;
+  teamName: string;
+  flagCode: string;
 }
 
 export interface DailyEntry {
@@ -133,6 +149,7 @@ export interface DailyEntry {
   totalPoints: number;
   breakdown: DailyBreakdown[];
   groupBonuses?: GroupBonus[];
+  koBonuses?: KoBonus[];
 }
 
 export interface DailyRecapResponse {
@@ -162,6 +179,12 @@ export interface UpcomingPrediction {
   game_id: number;
   home_team: string;
   away_team: string;
+  home_code: string;
+  away_code: string;
+  actual_home_team?: string;
+  actual_away_team?: string;
+  actual_home_code?: string;
+  actual_away_code?: string;
   predicted_home: number;
   predicted_away: number;
   scheduled_at: string;

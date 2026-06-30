@@ -27,6 +27,7 @@ const FIVE_MIN = 5 * 60 * 1000;
 export interface BreakdownEntry {
   game_id: number;
   scheduled_at: string;
+  stage: string;
   home_team: string;
   away_team: string;
   home_code: string;
@@ -39,8 +40,15 @@ export interface BreakdownEntry {
   categories_awarded: string[];
 }
 
+export interface KoBonus {
+  category: string;
+  points: number;  // per-team point value
+  teams: { team_id: number; team_name: string; flag_emoji: string }[];
+}
+
 export interface ParticipantWithBreakdown extends ParticipantStanding {
   breakdown: BreakdownEntry[];
+  ko_bonuses: KoBonus[];
 }
 
 function parseScoringRules(scoringRes: Record<string, unknown>): ScoringRules {
@@ -106,6 +114,7 @@ export async function getLeaderboardWithBreakdown(): Promise<{
         return {
           game_id: r['game_id'] as number,
           scheduled_at: r['scheduled_at'] as string,
+          stage: r['stage'] as string,
           home_team: r['home_team'] as string,
           away_team: r['away_team'] as string,
           home_code: r['home_code'] as string,
@@ -116,6 +125,17 @@ export async function getLeaderboardWithBreakdown(): Promise<{
           actual_away: r['actual_away'] as number,
           points: r['points'] as number,
           categories_awarded: (r['categories_awarded'] as string[]) ?? [],
+        };
+      }),
+      ko_bonuses: ((p['ko_bonuses'] as unknown[]) ?? []).map((kb) => {
+        const r = kb as Record<string, unknown>;
+        return {
+          category: r['category'] as string,
+          points: r['points'] as number,
+          teams: ((r['teams'] as unknown[]) ?? []).map((t) => {
+            const tr = t as Record<string, unknown>;
+            return { team_id: tr['team_id'] as number, team_name: tr['team_name'] as string, flag_emoji: tr['flag_emoji'] as string };
+          }),
         };
       }),
     }),

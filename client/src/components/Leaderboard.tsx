@@ -26,11 +26,20 @@ function PredictionRow({ pred, colSpan }: { pred: LivePrediction; colSpan: numbe
       scoreLabel={pred.isHypothetical ? 'Sim' : 'Live'}
       scoreHighlight={pred.isHypothetical ? COLOR_SIMULATION : undefined}
       colSpan={colSpan}
+      predictedHomeTeam={pred.predictedHomeTeam}
+      predictedAwayTeam={pred.predictedAwayTeam}
+      predictedHomeCode={pred.predictedHomeCode}
+      predictedAwayCode={pred.predictedAwayCode}
     />
   );
 }
 
 function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; match: ScheduledMatch | undefined; colSpan: number }) {
+  const actualHome = pred.actual_home_team ?? match?.homeTeam ?? pred.home_team;
+  const actualAway = pred.actual_away_team ?? match?.awayTeam ?? pred.away_team;
+  const actualHomeCode = pred.actual_home_code ?? match?.homeCode ?? pred.home_code;
+  const actualAwayCode = pred.actual_away_code ?? match?.awayCode ?? pred.away_code;
+  const teamsMatch = pred.home_team === actualHome && pred.away_team === actualAway;
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
@@ -38,10 +47,20 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
           <div style={{ flex: 1 }}>
             <Matchup
               variant="card"
-              homeTeam={pred.home_team} awayTeam={pred.away_team}
-              homeCode={match?.homeCode ?? ''} awayCode={match?.awayCode ?? ''}
+              homeTeam={actualHome} awayTeam={actualAway}
+              homeCode={actualHomeCode} awayCode={actualAwayCode}
               center={<KickoffTime utc={pred.scheduled_at} />}
             />
+            {!teamsMatch && (
+              <div style={{ marginTop: 4, paddingLeft: 2, opacity: 0.65 }}>
+                <Matchup
+                  variant="card"
+                  homeTeam={pred.home_team} awayTeam={pred.away_team}
+                  homeCode={pred.home_code} awayCode={pred.away_code}
+                  center={<span style={{ color: '#475569', fontWeight: 500, fontSize: 11 }}>Predicted</span>}
+                />
+              </div>
+            )}
           </div>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction: <strong style={{ color: '#e2e8f0' }}>{pred.predicted_home}–{pred.predicted_away}</strong>
@@ -56,17 +75,17 @@ function UpcomingPredRow({ pred, match, colSpan }: { pred: UpcomingPrediction; m
 function ExpandedRow({ entry, colSpan, upcoming }: { entry: LeaderboardEntry; colSpan: number; upcoming: ScheduledMatch[] }) {
   const [upcomingPreds, setUpcomingPreds] = useState<UpcomingPrediction[] | null>(null);
 
-  const matchByTeams = useMemo(
-    () => new Map(upcoming.map((m) => [`${m.homeTeam}|${m.awayTeam}`, m])),
+  const matchByKickoff = useMemo(
+    () => new Map(upcoming.map((m) => [m.kickoffUtc.slice(0, 16), m])),
     [upcoming],
   );
 
   useEffect(() => {
     if (upcoming.length === 0) { setUpcomingPreds([]); return; }
     fetchParticipantUpcoming(entry.id)
-      .then((preds) => setUpcomingPreds(preds.filter((p) => matchByTeams.has(`${p.home_team}|${p.away_team}`))))
+      .then((preds) => setUpcomingPreds(preds.filter((p) => matchByKickoff.has(p.scheduled_at.slice(0, 16)))))
       .catch(() => setUpcomingPreds([]));
-  }, [entry.id, matchByTeams]);
+  }, [entry.id, matchByKickoff]);
 
   return (
     <>
@@ -82,7 +101,7 @@ function ExpandedRow({ entry, colSpan, upcoming }: { entry: LeaderboardEntry; co
           </tr>
         )
         : upcomingPreds.map((pred) => (
-          <UpcomingPredRow key={pred.game_id} pred={pred} match={matchByTeams.get(`${pred.home_team}|${pred.away_team}`)} colSpan={colSpan} />
+          <UpcomingPredRow key={pred.game_id} pred={pred} match={matchByKickoff.get(pred.scheduled_at.slice(0, 16))} colSpan={colSpan} />
         ))
       }
     </>

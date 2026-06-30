@@ -1,4 +1,4 @@
-import type { DailyRecapResponse, DailyEntry, DailyBreakdown, GroupBonus } from '../types';
+import type { DailyRecapResponse, DailyEntry, DailyBreakdown, GroupBonus, KoBonus } from '../types';
 import { BaseLeaderboard, type ColumnDef } from './BaseLeaderboard';
 import { MatchBreakdownRow } from './MatchBreakdownRow';
 import { COLOR_RANK_1, COLOR_RANK_2, COLOR_RANK_3, COLOR_CORRECT_LIVE, COLOR_MISS, COLOR_RANK_DOWN_SOFT } from '../lib/colors';
@@ -7,6 +7,10 @@ interface Props {
   data: DailyRecapResponse | null;
   loading: boolean;
 }
+
+const KO_CAT_LABEL: Record<string, string> = {
+  F: 'Reached R32', G: 'Reached R16', H: 'Reached QF', I: 'Reached SF', J: 'Reached Final', K: 'Champion',
+};
 
 function BreakdownRow({ pred }: { pred: DailyBreakdown }) {
   return (
@@ -18,7 +22,34 @@ function BreakdownRow({ pred }: { pred: DailyBreakdown }) {
       points={pred.points}
       scoreLabel="Result"
       colSpan={4}
+      predictedHomeTeam={pred.predictedHomeTeam}
+      predictedAwayTeam={pred.predictedAwayTeam}
+      predictedHomeCode={pred.predictedHomeCode}
+      predictedAwayCode={pred.predictedAwayCode}
     />
+  );
+}
+
+function KoBonusRow({ bonus }: { bonus: KoBonus }) {
+  const label = KO_CAT_LABEL[bonus.category] ?? bonus.category;
+  return (
+    <tr>
+      <td colSpan={4} style={{ padding: '4px 8px 4px 28px', background: '#0f172a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#94a3b8' }}>
+          <img
+            src={`https://flagcdn.com/20x15/${bonus.flagCode}.png`}
+            alt={bonus.teamName}
+            style={{ width: 20, height: 15, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }}
+          />
+          <span style={{ fontWeight: 600 }}>{bonus.teamName}</span>
+          <span style={{ color: '#475569' }}>·</span>
+          <span>{label}</span>
+          <span style={{ marginLeft: 'auto', color: COLOR_CORRECT_LIVE, fontWeight: 600 }}>
+            +{bonus.points}
+          </span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -61,7 +92,7 @@ const columns: ColumnDef<DailyEntry>[] = [
     render: (e, isExpanded) => (
       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {e.name}
-        {(e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0) && (
+        {(e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0 || (e.koBonuses?.length ?? 0) > 0) && (
           <span style={{ color: '#475569', fontSize: 11 }}>{isExpanded ? '▲' : '▼'}</span>
         )}
       </span>
@@ -117,11 +148,12 @@ export function DailyMovement({ data, loading }: Props) {
     <BaseLeaderboard
       entries={data.leaderboard}
       columns={columns}
-      isExpandable={(e) => e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0}
+      isExpandable={(e) => e.breakdown.length > 0 || (e.groupBonuses?.length ?? 0) > 0 || (e.koBonuses?.length ?? 0) > 0}
       renderExpanded={(e) => (
         <>
           {e.breakdown.map((pred, j) => <BreakdownRow key={j} pred={pred} />)}
           {e.groupBonuses?.map((bonus, j) => <GroupBonusRow key={j} bonus={bonus} />)}
+          {e.koBonuses?.map((bonus, j) => <KoBonusRow key={j} bonus={bonus} />)}
         </>
       )}
     />

@@ -14,25 +14,44 @@ interface Props {
   scoreLabel?: string;
   scoreHighlight?: string;
   colSpan?: number;
+  predictedHomeTeam?: string;
+  predictedAwayTeam?: string;
+  predictedHomeCode?: string;
+  predictedAwayCode?: string;
 }
 
 export function MatchBreakdownRow({
   homeTeam, awayTeam, homeCode, awayCode,
   homeGoals, awayGoals, predictedHome, predictedAway,
   points, scoreLabel = 'Result', scoreHighlight, colSpan = 4,
+  predictedHomeTeam, predictedAwayTeam, predictedHomeCode, predictedAwayCode,
 }: Props) {
   const tierColor = points >= 11 ? COLOR_EXACT : points >= 3 ? COLOR_CORRECT : points > 0 ? COLOR_MARGIN : COLOR_MISS;
+
+  const teamsMatch = !predictedHomeTeam || (predictedHomeTeam === homeTeam && predictedAwayTeam === awayTeam);
+
   const center = (
     <span style={{ color: '#64748b', fontWeight: 500 }}>
       {scoreLabel}: <strong style={{ color: scoreHighlight ?? '#e2e8f0' }}>{homeGoals}–{awayGoals}</strong>
     </span>
   );
+
   return (
     <tr style={{ background: '#0a1628' }}>
       <td colSpan={colSpan} style={{ padding: '8px 14px 8px 40px', borderBottom: '1px solid #1e293b' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#94a3b8' }}>
           <div style={{ flex: 1 }}>
             <Matchup variant="card" homeTeam={homeTeam} awayTeam={awayTeam} homeCode={homeCode} awayCode={awayCode} center={center} />
+            {!teamsMatch && (
+              <div style={{ marginTop: 4, paddingLeft: 2, opacity: 0.65 }}>
+                <Matchup
+                  variant="card"
+                  homeTeam={predictedHomeTeam!} awayTeam={predictedAwayTeam!}
+                  homeCode={predictedHomeCode ?? ''} awayCode={predictedAwayCode ?? ''}
+                  center={<span style={{ color: '#475569', fontWeight: 500, fontSize: 11 }}>Predicted</span>}
+                />
+              </div>
+            )}
           </div>
           <span style={{ width: 140, flexShrink: 0 }}>
             Prediction:{' '}

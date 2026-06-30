@@ -18,6 +18,7 @@ const app = express();
 app.use(cors());
 
 interface LiveMatchInternal {
+  gameId?: number;
   homeTeam: string;
   awayTeam: string;
   homeCode: string;
@@ -42,6 +43,7 @@ async function getMockMatches(): Promise<LiveMatchInternal[]> {
     .slice(0, 2);
 
   return candidates.map((g, i) => ({
+    gameId: g.game_id,
     homeTeam: g.home_team_name,
     awayTeam: g.away_team_name,
     homeCode: g.home_flag,
@@ -95,6 +97,7 @@ app.get('/api/leaderboard', async (req, res) => {
         const quinielaHome = q?.home_team_name ?? e.espnHomeTeam;
         const flipped = isEspnFlipped(e.espnHomeAbbr, e.espnAwayAbbr, q?.home_flag ?? '');
         return {
+          ...(q?.game_id != null && { gameId: q.game_id }),
           homeTeam: quinielaHome,
           awayTeam: q?.away_team_name ?? e.espnAwayTeam,
           homeCode: q?.home_flag ?? (flipped ? a : h),
@@ -141,24 +144,39 @@ app.get('/api/leaderboard', async (req, res) => {
     );
     const bracketMap = new Map(brackets.map((b) => [b.id, b.preds]));
 
+    const teamFlagMap = new Map(allGames.flatMap((g) => [
+      [g.home_team_name?.toLowerCase(), g.home_flag],
+      [g.away_team_name?.toLowerCase(), g.away_flag],
+    ]));
+
     const withLive = leaderboard.map((p) => {
       const preds = bracketMap.get(p.id) ?? [];
+      const predByGameId = new Map(preds.map((pr) => [pr.game_id, pr]));
       let livePoints = 0;
       const liveBreakdown = [];
 
       for (const match of liveMatches) {
-        const pred = preds.find(
-          (pr) => pr.home_team === match.homeTeam && pr.away_team === match.awayTeam,
-        );
+        const pred = match.gameId != null
+          ? predByGameId.get(match.gameId)
+          : preds.find((pr) => pr.home_team === match.homeTeam && pr.away_team === match.awayTeam);
         if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
+
+        const actualTeams = new Set([match.homeTeam.toLowerCase(), match.awayTeam.toLowerCase()]);
+        const teamMatchCount = pred.stage === 'ko'
+          ? [pred.home_team, pred.away_team].filter((t) => t && actualTeams.has(t.toLowerCase())).length
+          : 2;
 
         const points = calculateLivePoints(
           { home: pred.predicted_home, away: pred.predicted_away },
           { home: match.homeGoals, away: match.awayGoals },
           pred.stage,
           rules,
+          false,
+          teamMatchCount,
         );
         livePoints += points;
+
+        const predictedTeamsDiffer = pred.stage === 'ko' && teamMatchCount < 2;
         liveBreakdown.push({
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
@@ -170,6 +188,12 @@ app.get('/api/leaderboard', async (req, res) => {
           predictedAway: pred.predicted_away,
           stage: pred.stage,
           points,
+          ...(predictedTeamsDiffer && {
+            predictedHomeTeam: pred.home_team,
+            predictedAwayTeam: pred.away_team,
+            predictedHomeCode: teamFlagMap.get(pred.home_team?.toLowerCase()) ?? '',
+            predictedAwayCode: teamFlagMap.get(pred.away_team?.toLowerCase()) ?? '',
+          }),
         });
       }
 
@@ -251,8 +275,8 @@ app.get('/api/daily-recap', async (req, res) => {
   try {
     if (req.query['bust'] === 'true') bustQuinielaCache();
     const isMock = req.query['mock'] === 'true';
-    const [{ leaderboard, rules }, allGames, espnMatches] = await Promise.all([
-      getOfficialLeaderboard(),
+    const [{ participants: leaderboard, rules }, allGames, espnMatches] = await Promise.all([
+      getLeaderboardWithBreakdown(),
       getGames(),
       isMock ? getEspnMatches() : Promise.resolve([] as Awaited<ReturnType<typeof getEspnMatches>>),
     ]);
@@ -343,24 +367,30 @@ app.get('/api/daily-recap', async (req, res) => {
       games.some((g) => { const t = new Date(g.scheduled_at); return t >= from && t <= to; })
     );
 
+    const STAGE_TO_KO_CAT: Record<string, string> = { r32: 'G', r16: 'H', qf: 'I', sf: 'J', final: 'K' };
+    const teamFlagMapRecap = new Map(allGames.flatMap((g) => [
+      [g.home_team_name?.toLowerCase(), g.home_flag],
+      [g.away_team_name?.toLowerCase(), g.away_flag],
+    ]));
+
     const withToday = leaderboard.map((p) => {
       const preds = bracketMap.get(p.id) ?? [];
       const predByGameId = new Map(preds.map((pr) => [pr.game_id, pr]));
+      const officialBdMap = new Map(p.breakdown.map((bd) => [bd.game_id, bd]));
       let pointsToday = 0;
       const breakdown = [];
+
       for (const game of todayCompleted) {
-        const pred = preds.find(
-          (pr) => pr.home_team === game.home_team_name && pr.away_team === game.away_team_name,
-        );
-        if (!pred || pred.predicted_home === null || pred.predicted_away === null) continue;
-        const stage = game.stage === 'group' ? 'group' : 'ko';
-        const points = calculateLivePoints(
-          { home: pred.predicted_home, away: pred.predicted_away },
-          { home: game.actual_home_score!, away: game.actual_away_score! },
-          stage,
-          rules,
-        );
+        const bracketPred = predByGameId.get(game.game_id);
+        if (!bracketPred || bracketPred.predicted_home === null || bracketPred.predicted_away === null) continue;
+        const officialBd = officialBdMap.get(game.game_id);
+        const points = officialBd?.points ?? 0;
         pointsToday += points;
+
+        const actualTeams = new Set([game.home_team_name.toLowerCase(), game.away_team_name.toLowerCase()]);
+        const predictedTeamsDiffer = game.stage !== 'group' &&
+          ![bracketPred.home_team, bracketPred.away_team].every((t) => t && actualTeams.has(t.toLowerCase()));
+
         breakdown.push({
           homeTeam: game.home_team_name,
           awayTeam: game.away_team_name,
@@ -368,9 +398,16 @@ app.get('/api/daily-recap', async (req, res) => {
           awayCode: game.away_flag,
           homeGoals: game.actual_home_score!,
           awayGoals: game.actual_away_score!,
-          predictedHome: pred.predicted_home,
-          predictedAway: pred.predicted_away,
+          predictedHome: bracketPred.predicted_home,
+          predictedAway: bracketPred.predicted_away,
           points,
+          categoriesAwarded: officialBd?.categories_awarded,
+          ...(predictedTeamsDiffer && {
+            predictedHomeTeam: bracketPred.home_team,
+            predictedAwayTeam: bracketPred.away_team,
+            predictedHomeCode: teamFlagMapRecap.get(bracketPred.home_team?.toLowerCase()) ?? '',
+            predictedAwayCode: teamFlagMapRecap.get(bracketPred.away_team?.toLowerCase()) ?? '',
+          }),
         });
       }
 
@@ -391,7 +428,24 @@ app.get('/api/daily-recap', async (req, res) => {
         pointsToday += lBonus;
       }
 
-      return { ...p, pointsToday, breakdown, groupBonuses, preTodayPoints: p.total_points - pointsToday };
+      // Compute KO advancement bonuses earned today (G = team reached R16, H = QF, etc.)
+      const koBonuses: { category: string; points: number; teamName: string; flagCode: string }[] = [];
+      for (const game of todayCompleted) {
+        if (game.stage === 'group') continue;
+        const bonusCat = STAGE_TO_KO_CAT[game.stage];
+        if (!bonusCat) continue;
+        const catEntry = (p.ko_bonuses ?? []).find((kb) => kb.category === bonusCat);
+        if (!catEntry) continue;
+        const todayTeams = new Set([game.home_team_name, game.away_team_name]);
+        for (const team of catEntry.teams) {
+          if (todayTeams.has(team.team_name)) {
+            koBonuses.push({ category: bonusCat, points: catEntry.points, teamName: team.team_name, flagCode: team.flag_emoji });
+            pointsToday += catEntry.points;
+          }
+        }
+      }
+
+      return { ...p, pointsToday, breakdown, groupBonuses, koBonuses, preTodayPoints: p.total_points - pointsToday };
     });
 
     const preSorted = [...withToday].sort(
@@ -423,6 +477,7 @@ app.get('/api/daily-recap', async (req, res) => {
           totalPoints: p.total_points,
           breakdown: entry.breakdown,
           groupBonuses: entry.groupBonuses,
+          koBonuses: entry.koBonuses,
         };
       }),
     });
@@ -620,6 +675,10 @@ app.get('/api/upcoming/:id', async (req, res) => {
 
     const bracketMap = new Map(bracket.map((p) => [p.game_id, p]));
     const gamesMap = new Map(games.map((g) => [g.game_id, g]));
+    const teamFlagMap = new Map(games.flatMap((g) => [
+      [g.home_team_name?.toLowerCase(), g.home_flag],
+      [g.away_team_name?.toLowerCase(), g.away_flag],
+    ]));
 
     const predictions = upcoming
       .map((u) => {
@@ -630,6 +689,12 @@ app.get('/api/upcoming/:id', async (req, res) => {
           game_id: u.game_id,
           home_team: b.home_team,
           away_team: b.away_team,
+          home_code: teamFlagMap.get(b.home_team?.toLowerCase()) ?? '',
+          away_code: teamFlagMap.get(b.away_team?.toLowerCase()) ?? '',
+          actual_home_team: g.home_team_name,
+          actual_away_team: g.away_team_name,
+          actual_home_code: g.home_flag,
+          actual_away_code: g.away_flag,
           predicted_home: u.predicted_home,
           predicted_away: u.predicted_away,
           scheduled_at: g.scheduled_at,
