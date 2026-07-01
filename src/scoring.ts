@@ -18,6 +18,9 @@ export function calculateLivePoints(
   altE = false,
   teamMatchCount = 2,  // KO: how many predicted teams are in this actual game (0, 1, or 2)
 ): number {
+  // KO: predicting neither team means no points at all
+  if (stage === 'ko' && teamMatchCount === 0) return 0;
+
   const { marginFactor } = rules;
 
   const isExact = predicted.home === live.home && predicted.away === live.away;
@@ -27,10 +30,9 @@ export function calculateLivePoints(
     ? isCorrectOutcome && (Math.abs(predicted.home - live.home) + Math.abs(predicted.away - live.away)) <= 1
     : Math.abs(predicted.home - live.home) <= marginFactor && Math.abs(predicted.away - live.away) <= marginFactor;
 
-  // KO: B scales by how many predicted teams appear in the actual matchup; D requires both teams to match
+  // KO: B scales by matched team count (1 or 2); D and E are available with any match
   const outcomePoints = stage === 'group' ? rules.A * 2 : rules.B * teamMatchCount;
-  const canAwardD = stage === 'group' || teamMatchCount === 2;
 
-  if (canAwardD && isExact) return rules.D + outcomePoints;
+  if (isExact) return rules.D + outcomePoints;
   return (isCorrectOutcome ? outcomePoints : 0) + (isWithinMargin ? rules.E : 0);
 }
